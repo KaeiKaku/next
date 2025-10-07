@@ -1,12 +1,15 @@
 import "./App.css";
+import { App } from "antd";
 import Home from "@/components/home/home";
 
-function App() {
+function UiApp() {
   return (
     <>
-      <Home />
+      <App>
+        <Home />
+      </App>
     </>
   );
 }
 
-export default App;
+export default UiApp;
