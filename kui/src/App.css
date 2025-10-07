@@ -8,6 +8,8 @@
   /* size */
   --header-height: 50px;
   --document-colletion: 10rem;
+  --min-thread-width: 600px;
+  --max-thread-width: 1000px;
   /* Gray */
   --gray-100: #f7f7f7;
   --gray-200: #e1e1e1;

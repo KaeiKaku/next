@@ -1,5 +1,15 @@
 .queryBox_con {
-  position: absolute;
+  position: fixed;
   width: 100%;
   align-self: flex-end;
+}
+
+.textarea_con {
+  width: var(--max-thread-width);
+  min-width: var(--min-thread-width);
+  padding: 0.5rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 0.5rem;
+  box-shadow: 0 0 0.5rem var(--gray-300);
+  background-color: white;
 }
