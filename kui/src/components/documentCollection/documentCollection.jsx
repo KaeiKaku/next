@@ -1,34 +1,44 @@
+import { useState, useEffect } from "react";
 import style from "./documentCollection.module.css";
-import { Flex, Typography, Select, Space, Button } from "antd";
+import { Flex, Typography, Select, Space } from "antd";
 
-const options = [
-  {
-    label: <span>manager</span>,
-    title: "manager",
-    options: [
-      { label: <span>m1</span>, value: "m1" },
-      { label: <span>m2</span>, value: "m2" },
-      { label: <span>m3</span>, value: "m3" },
-      { label: <span>m4</span>, value: "m4" },
-    ],
-  },
-  {
-    label: <span>engineer</span>,
-    title: "engineer",
-    options: [
-      { label: <span>e1</span>, value: "e1" },
-      { label: <span>e2</span>, value: "e2" },
-      { label: <span>e3</span>, value: "e3" },
-      { label: <span>e4</span>, value: "e4" },
-    ],
-  },
-];
+export default function DocumentCollection({ onChange }) {
+  const [document_opotions, setOptions] = useState([]);
 
-const handleChange = (value) => {
-  console.log(`selected ${value}`);
-};
+  useEffect(() => {
+    const fetchCollections = async () => {
+      try {
+        const response = await fetch("http://127.0.0.1:8000/collections");
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-export default function DocumentCollection() {
+        const data = await response.json();
+
+        const new_document_opotions = [
+          {
+            label: "Documents",
+            title: "Documents",
+            options: (data.collections || []).map((datum) => ({
+              label: datum,
+              value: datum,
+            })),
+          },
+        ];
+
+        setOptions(new_document_opotions);
+      } catch (error) {
+        console.error("Fetch error:", error);
+      }
+    };
+
+    fetchCollections();
+  }, []);
+
+  const handleChange = (value) => {
+    onChange?.(value);
+  };
+
   return (
     <>
       <Flex
@@ -42,11 +52,10 @@ export default function DocumentCollection() {
           <Select
             mode="tags"
             style={{ width: "100%" }}
-            placeholder="Tags Mode"
+            placeholder="collect documents..."
             onChange={handleChange}
-            options={options}
+            options={document_opotions}
           />
-          <Button type="primary">Search</Button>
         </Space.Compact>
       </Flex>
     </>

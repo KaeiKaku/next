@@ -4,14 +4,18 @@ import QueryBox from "../queryBox/queryBox";
 
 const { Paragraph } = Typography;
 
-export default function Chat() {
+export default function Chat({ selectedCollection, selectedFile }) {
   return (
     <>
       <Flex justify="center" className={styles.chat_con}>
         <Flex className={styles.thread_con} vertical>
           <Typography className={styles.user_thread_con}>
             <Paragraph>
-              <pre>user block ... </pre>
+              <pre>
+                user block ...user block ...user block ...user block ...user
+                block ...user block ...user block ... user block ... user block
+                ...
+              </pre>
             </Paragraph>
           </Typography>
           <Typography>
@@ -26,7 +30,10 @@ export default function Chat() {
             </Paragraph>
           </Typography>
         </Flex>
-        <QueryBox />
+        <QueryBox
+          selectedCollection={selectedCollection}
+          selectedFile={selectedFile}
+        />
       </Flex>
     </>
   );
