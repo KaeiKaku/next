@@ -1,29 +1,24 @@
-import { Flex, Splitter, Typography } from "antd";
+import { Flex, Splitter } from "antd";
 import Header from "@/components/header/header";
 import DocumentCollection from "@/components/documentCollection/documentCollection";
-
-const Desc = (props) => (
-  <Flex justify="center" align="center" style={{ height: "100%" }}>
-    <Typography.Title
-      type="secondary"
-      level={5}
-      style={{ whiteSpace: "nowrap" }}
-    >
-      {props.text}
-    </Typography.Title>
-  </Flex>
-);
+import FolderCollection from "@/components/folderCollection/folderCollection";
+import Chat from "@/components/chat/chat";
 
 export default function Home() {
   return (
     <>
       <Header />
-      <Splitter>
+      <Splitter style={{ height: `calc(100vh - var(--header-height))` }}>
         <Splitter.Panel defaultSize="30%" min="20%" max="50%">
-          <DocumentCollection />
+          <Flex vertical style={{ height: "100%" }}>
+            <DocumentCollection />
+            <FolderCollection />
+          </Flex>
         </Splitter.Panel>
         <Splitter.Panel>
-          <Desc text="Second" />
+          <Flex vertical style={{ height: "100%" }}>
+            <Chat />
+          </Flex>
         </Splitter.Panel>
       </Splitter>
     </>

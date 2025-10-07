@@ -6,6 +6,7 @@
   --font-family: "Fira Code", "Noto Sans Mono", "Consolas", "Menlo";
   interpolate-size: allow-keywords;
   /* size */
+  --header-height: 50px;
   --document-colletion: 10rem;
   /* Gray */
   --gray-100: #f7f7f7;
@@ -157,6 +158,8 @@ input {
 /* ================================================ */
 /* ================================================ */
 div#root {
+  display: flex;
+  flex-direction: column;
   width: 100dvw;
   height: 100dvh;
   overflow: hidden;

@@ -1,5 +1,6 @@
 .documentCollection_con {
-  height: var(--document-colletion);
+  min-height: var(--document-colletion);
+  padding: 1rem;
   border-bottom: 1px solid var(--gray-300);
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }

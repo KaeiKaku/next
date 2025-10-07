@@ -1,5 +1,5 @@
 .header_con {
-  padding: 1rem;
+  min-height: var(--header-height);
   color: white;
   background-color: black;
 }
