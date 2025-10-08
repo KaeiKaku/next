@@ -9,9 +9,30 @@
 .thread_con {
   width: var(--max-thread-width);
   min-width: var(--min-thread-width);
+  height: auto;
+  flex: none;
+}
+.thread_con:last-child {
+  flex: 1;
 }
 
 .user_thread_con {
   max-width: 60%;
   align-self: flex-end;
+}
+
+.queryBox_con {
+  position: fixed;
+  width: 100%;
+  bottom: 1rem;
+}
+
+.textarea_con {
+  width: var(--max-thread-width);
+  min-width: var(--min-thread-width);
+  padding: 0.5rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 0.5rem;
+  box-shadow: 0 0 0.5rem var(--gray-300);
+  background-color: white;
 }

@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import style from "./documentCollection.module.css";
 import { Flex, Typography, Select, Space } from "antd";
+import { statusService } from "@/status/status";
+import style from "./documentCollection.module.css";
 
-export default function DocumentCollection({ onChange }) {
+export default function DocumentCollection() {
   const [document_opotions, setOptions] = useState([]);
 
   useEffect(() => {
@@ -36,7 +37,7 @@ export default function DocumentCollection({ onChange }) {
   }, []);
 
   const handleChange = (value) => {
-    onChange?.(value);
+    statusService.patchStatus("documentCollection", value);
   };
 
   return (

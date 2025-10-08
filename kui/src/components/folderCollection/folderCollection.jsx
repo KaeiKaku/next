@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Flex, Typography, Input, Button, Tree } from "antd";
+import { statusService } from "@/status/status";
 
 const { TextArea } = Input;
 const { DirectoryTree } = Tree;
@@ -47,8 +48,9 @@ const { DirectoryTree } = Tree;
 //   },
 // ];
 
-export default function folderCollection({ selectedCollection, onChange }) {
-  const [selectrion_query, setSelectionValue] = useState("");
+export default function folderCollection() {
+  const [selectrion_query, setSelectionValue] = useState();
+  const [selectedCollection, setSelectedCollection] = useState();
   const [folder_tree, setFolderTree] = useState([]);
   const [expandedKeys, setExpandedKeys] = useState(["0-0-0", "0-0-1"]);
   const [checkedKeys, setCheckedKeys] = useState();
@@ -64,7 +66,7 @@ export default function folderCollection({ selectedCollection, onChange }) {
   // };
   const onCheck = (checkedKeysValue) => {
     setCheckedKeys(checkedKeysValue);
-    onChange?.(checkedKeysValue);
+    statusService.patchStatus("fileCollection", checkedKeysValue);
   };
   // const onSelect = (selectedKeysValue, info) => {
   //   console.log("onSelect", info);
@@ -112,6 +114,16 @@ export default function folderCollection({ selectedCollection, onChange }) {
       console.error("error:", error);
     }
   };
+
+  useEffect(() => {
+    const documentCollection$ = statusService.getStatus$("documentCollection");
+
+    const docSub = documentCollection$.subscribe((_selectedCollection) => {
+      setSelectedCollection(_selectedCollection.join());
+    });
+
+    return () => docSub.unsubscribe();
+  }, []);
 
   return (
     <>
