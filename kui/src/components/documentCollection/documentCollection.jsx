@@ -51,7 +51,7 @@ export default function DocumentCollection() {
         <Typography.Title level={4}>Document Collection</Typography.Title>
         <Space.Compact block>
           <Select
-            mode="tags"
+            showSearch
             style={{ width: "100%" }}
             placeholder="collect documents..."
             onChange={handleChange}

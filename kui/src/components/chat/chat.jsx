@@ -11,24 +11,15 @@ export default function Chat() {
   const [query, setValue] = useState();
   const [documentCollection, setDocumentCollection] = useState();
   const [fileCollection, setFileCollection] = useState();
-  const [messages, setMessages] = useState([
-    {
-      query:
-        "userinput....userinput....userinput....userinput....userinput....userinput....userinput....userinput....userinput....userinput....",
-      response:
-        "response...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AI",
-    },
-  ]);
+  const [messages, setMessages] = useState([]);
   const latestMessageRef = useRef(null);
-  const messageContainerRef = useRef(null);
 
   const handleQuery = async () => {
     // if (!selectedCollection || !fileCollection || !query) return;
 
     const new_messages = [
       {
-        query:
-          "userinput....userinput....userinput....userinput....userinput....userinput....userinput....userinput....userinput....userinput....",
+        query: query,
         response:
           "response...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AI",
       },
@@ -42,7 +33,7 @@ export default function Chat() {
     // try {
     //   const response = await fetch(
     //     `http://127.0.0.1:8000/inquire/${encodeURIComponent(
-    //       _selectedCollection
+    //       documentCollection
     //     )}`,
     //     {
     //       method: "POST",
@@ -75,7 +66,7 @@ export default function Chat() {
       setDocumentCollection(_documentCollection.join());
     });
     const fileSub = fileCollection$.subscribe((_fileCollection) => {
-      setFileCollection(fileCollection);
+      setFileCollection(_fileCollection);
     });
 
     return () => {
@@ -83,59 +74,50 @@ export default function Chat() {
       fileSub.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (latestMessageRef.current) {
+      latestMessageRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
   return (
     <>
       <Flex
-        justify="center"
+        justify="flest-start"
         align="center"
-        ref={messageContainerRef}
         className={styles.chat_con}
         vertical
       >
-        <Flex className={styles.thread_con} vertical>
-          <Typography className={styles.user_thread_con}>
-            <Paragraph>
-              <pre>
-                user block ...user block ...user block ...user block ...user
-                block ...user block ...user block ... user block ... user block
-                ...
-              </pre>
-            </Paragraph>
-          </Typography>
-          <Typography>
-            <Paragraph>
-              AI response...AI response...AI response...AI response... AI
-              response...AI response...AI response...AI response...AI
-              response...AI response...AI response... AI response...AI
-              response...AI response...AI response... AI response...AI
-              response...AI response...AI response...AI response...AI
-              response...AI response...AI response... AI response...AI
-              response...AI response...
-            </Paragraph>
-          </Typography>
-        </Flex>
-        <Flex className={styles.thread_con} vertical>
-          <Typography className={styles.user_thread_con}>
-            <Paragraph>
-              <pre>
-                user block ...user block ...user block ...user block ...user
-                block ...user block ...user block ... user block ... user block
-                ...
-              </pre>
-            </Paragraph>
-          </Typography>
-          <Typography>
-            <Paragraph>
-              AI response...AI response...AI response...AI response... AI
-              response...AI response...AI response...AI response...AI
-              response...AI response...AI response... AI response...AI
-              response...AI response...AI response... AI response...AI
-              response...AI response...AI response...AI response...AI
-              response...AI response...AI response... AI response...AI
-              response...AI response...
-            </Paragraph>
-          </Typography>
-        </Flex>
+        {messages.map((message, index) => {
+          return (
+            <Fragment key={index}>
+              <Flex
+                ref={index === messages.length - 1 ? latestMessageRef : null}
+                className={styles.thread_con}
+                vertical
+              >
+                <Typography className={styles.user_thread_con}>
+                  <Paragraph>
+                    <pre>{message.query}</pre>
+                  </Paragraph>
+                </Typography>
+                <Typography>
+                  <Paragraph>
+                    AI response...AI response...AI response...AI response... AI
+                    response...AI response...AI response...AI response...AI
+                    response...AI response...AI response... AI response...AI
+                    response...AI response...AI response... AI response...AI
+                    response...AI response...AI response...AI response...AI
+                    response...AI response...AI response... AI response...AI
+                    response...AI response...
+                  </Paragraph>
+                </Typography>
+              </Flex>
+            </Fragment>
+          );
+        })}
+
         {/* query box */}
         <Flex justify="center" className={styles.queryBox_con}>
           <Flex className={styles.textarea_con} vertical>

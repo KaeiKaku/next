@@ -9,7 +9,7 @@
 .thread_con {
   width: var(--max-thread-width);
   min-width: var(--min-thread-width);
-  height: auto;
+  height: 100%;
   flex: none;
 }
 .thread_con:last-child {

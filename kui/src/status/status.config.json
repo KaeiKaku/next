@@ -1,5 +1,7 @@
 {
-  "status": "ready",
+  "isLoadingDocuments": false,
+  "isLoadingFiles": false,
+  "isInquiring": false,
   "documentCollection": [],
   "fileCollection": [],
   "test1": {

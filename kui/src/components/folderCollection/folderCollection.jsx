@@ -52,10 +52,10 @@ export default function folderCollection() {
   const [selectrion_query, setSelectionValue] = useState();
   const [selectedCollection, setSelectedCollection] = useState();
   const [folder_tree, setFolderTree] = useState([]);
-  const [expandedKeys, setExpandedKeys] = useState(["0-0-0", "0-0-1"]);
+  // const [expandedKeys, setExpandedKeys] = useState(["0-0-0", "0-0-1"]);
   const [checkedKeys, setCheckedKeys] = useState();
-  const [selectedKeys, setSelectedKeys] = useState([]);
-  const [autoExpandParent, setAutoExpandParent] = useState(true);
+  // const [selectedKeys, setSelectedKeys] = useState([]);
+  // const [autoExpandParent, setAutoExpandParent] = useState(true);
 
   // const onExpand = (expandedKeysValue) => {
   //   console.log("onExpand", expandedKeysValue);
@@ -88,8 +88,6 @@ export default function folderCollection() {
           },
           body: JSON.stringify({
             query: selectrion_query,
-            threshold: 0.1,
-            top_n: 100,
           }),
         }
       );
