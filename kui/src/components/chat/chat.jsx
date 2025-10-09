@@ -1,69 +1,86 @@
 import { Fragment, useState, useEffect, useRef } from "react";
-import { Flex, Typography, Input, Button } from "antd";
+import { Flex, Typography, Input, Button, Skeleton } from "antd";
 import { SendOutlined } from "@ant-design/icons";
 import { statusService } from "@/status/status";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import styles from "./chat.module.css";
 
 const { Paragraph } = Typography;
 const { TextArea } = Input;
 
 export default function Chat() {
-  const [query, setValue] = useState();
+  const [fetchingAIResponse, setFetchingAIResponse] = useState(false);
+  const [query, setQuery] = useState();
   const [documentCollection, setDocumentCollection] = useState();
   const [fileCollection, setFileCollection] = useState();
   const [messages, setMessages] = useState([]);
   const latestMessageRef = useRef(null);
 
   const handleQuery = async () => {
-    // if (!selectedCollection || !fileCollection || !query) return;
+    if (!documentCollection || !fileCollection?.length || !query.trim()) return;
+    setFetchingAIResponse(true);
 
     const new_messages = [
       {
         query: query,
-        response:
-          "response...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AIresponse...AI",
+        response: "",
       },
     ];
-
     setMessages((prev) => [...prev, ...new_messages]);
 
-    // console.log(messageContainerRef.current.scrollTop);
-    // console.log(messages);
+    const query_json = {
+      query: query,
+      uuid_list: fileCollection,
+    };
 
-    // try {
-    //   const response = await fetch(
-    //     `http://127.0.0.1:8000/inquire/${encodeURIComponent(
-    //       documentCollection
-    //     )}`,
-    //     {
-    //       method: "POST",
-    //       headers: {
-    //         "Content-Type": "application/json",
-    //       },
-    //       body: JSON.stringify({
-    //         query: query,
-    //         uuid_list: fileCollection,
-    //       }),
-    //     }
-    //   );
+    setQuery("");
 
-    //   if (!response.ok) {
-    //     throw new Error(`HTTP error! status: ${response.status}`);
-    //   }
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/inquire/${encodeURIComponent(
+          documentCollection
+        )}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(query_json),
+        }
+      );
 
-    //   const result = await response.json();
-    //   console.log(result);
-    // } catch (error) {
-    //   console.error("error:", error);
-    // }
+      setQuery("");
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      setMessages((prev) =>
+        prev.map((msg, index) =>
+          index === prev.length - 1 ? { ...msg, response: result.answer } : msg
+        )
+      );
+    } catch (error) {
+      console.error("error:", error);
+    } finally {
+      setFetchingAIResponse(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleQuery();
+    }
   };
 
   useEffect(() => {
     const documentCollection$ = statusService.getStatus$("documentCollection");
     const fileCollection$ = statusService.getStatus$("fileCollection");
-
     const docSub = documentCollection$.subscribe((_documentCollection) => {
-      setDocumentCollection(_documentCollection.join());
+      setDocumentCollection(_documentCollection);
     });
     const fileSub = fileCollection$.subscribe((_fileCollection) => {
       setFileCollection(_fileCollection);
@@ -77,7 +94,10 @@ export default function Chat() {
 
   useEffect(() => {
     if (latestMessageRef.current) {
-      latestMessageRef.current.scrollIntoView({ behavior: "smooth" });
+      latestMessageRef.current.scrollIntoView({
+        behavior: "smooth",
+      });
+      latestMessageRef.current = null;
     }
   }, [messages]);
 
@@ -90,11 +110,15 @@ export default function Chat() {
         vertical
       >
         {messages.map((message, index) => {
+          const last = index === messages.length - 1;
           return (
             <Fragment key={index}>
               <Flex
-                ref={index === messages.length - 1 ? latestMessageRef : null}
+                ref={last ? latestMessageRef : null}
                 className={styles.thread_con}
+                style={{
+                  height: last ? "100%" : "auto",
+                }}
                 vertical
               >
                 <Typography className={styles.user_thread_con}>
@@ -102,16 +126,17 @@ export default function Chat() {
                     <pre>{message.query}</pre>
                   </Paragraph>
                 </Typography>
-                <Typography>
-                  <Paragraph>
-                    AI response...AI response...AI response...AI response... AI
-                    response...AI response...AI response...AI response...AI
-                    response...AI response...AI response... AI response...AI
-                    response...AI response...AI response... AI response...AI
-                    response...AI response...AI response...AI response...AI
-                    response...AI response...AI response... AI response...AI
-                    response...AI response...
-                  </Paragraph>
+                <Typography className={styles.ai_thread_con}>
+                  <Skeleton
+                    avatar
+                    active
+                    paragraph={{ rows: 4 }}
+                    loading={fetchingAIResponse && last}
+                  >
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {message.response}
+                    </ReactMarkdown>
+                  </Skeleton>
                 </Typography>
               </Flex>
             </Fragment>
@@ -124,13 +149,16 @@ export default function Chat() {
             <TextArea
               value={query}
               variant="borderless"
-              onChange={(e) => setValue(e.target.value)}
               placeholder="send a message..."
+              onKeyDown={handleKeyDown}
+              onChange={(e) => setQuery(e.target.value)}
               autoSize={{ minRows: 1, maxRows: 10 }}
             />
             <Flex justify="flex-end">
               <Button
-                shape="circle"
+                type="primary"
+                disabled={!documentCollection || !fileCollection?.length}
+                loading={fetchingAIResponse}
                 icon={<SendOutlined rotate={270} onClick={handleQuery} />}
               />
             </Flex>

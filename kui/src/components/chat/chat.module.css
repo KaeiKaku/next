@@ -12,13 +12,14 @@
   height: 100%;
   flex: none;
 }
-.thread_con:last-child {
-  flex: 1;
-}
 
 .user_thread_con {
   max-width: 60%;
   align-self: flex-end;
+}
+
+.ai_thread_con:last-child {
+  padding-bottom: 10rem;
 }
 
 .queryBox_con {

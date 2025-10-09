@@ -2,16 +2,6 @@
   "isLoadingDocuments": false,
   "isLoadingFiles": false,
   "isInquiring": false,
-  "documentCollection": [],
-  "fileCollection": [],
-  "test1": {
-    "name": "A",
-    "age": 20,
-    "score": [1, 2, 3, 4, 5]
-  },
-  "test2": {
-    "name": "b",
-    "age": 30,
-    "books": ["book1", "book2", "book3"]
-  }
+  "documentCollection": "",
+  "fileCollection": []
 }

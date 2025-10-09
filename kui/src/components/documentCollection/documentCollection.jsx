@@ -1,43 +1,45 @@
-import { useState, useEffect } from "react";
-import { Flex, Typography, Select, Space } from "antd";
+import { useState } from "react";
+import { Flex, Typography, Select, Space, Spin } from "antd";
 import { statusService } from "@/status/status";
 import style from "./documentCollection.module.css";
 
 export default function DocumentCollection() {
-  const [document_opotions, setOptions] = useState([]);
-
-  useEffect(() => {
-    const fetchCollections = async () => {
-      try {
-        const response = await fetch("http://127.0.0.1:8000/collections");
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        const new_document_opotions = [
-          {
-            label: "Documents",
-            title: "Documents",
-            options: (data.collections || []).map((datum) => ({
-              label: datum,
-              value: datum,
-            })),
-          },
-        ];
-
-        setOptions(new_document_opotions);
-      } catch (error) {
-        console.error("Fetch error:", error);
-      }
-    };
-
-    fetchCollections();
-  }, []);
+  const [fetching, setFetching] = useState(false);
+  const [document_opotions, setOptions] = useState("");
 
   const handleChange = (value) => {
     statusService.patchStatus("documentCollection", value);
+    statusService.patchStatus("fileCollection", []);
+  };
+
+  const handleFocus = async () => {
+    if (document_opotions > 0) return;
+    setFetching(true);
+    try {
+      const response = await fetch("http://127.0.0.1:8000/collections");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      const new_document_opotions = [
+        {
+          label: "Documents",
+          title: "Documents",
+          options: (data.collections || "").map((datum) => ({
+            label: datum,
+            value: datum,
+          })),
+        },
+      ];
+
+      setOptions(new_document_opotions);
+    } catch (error) {
+      console.error("Fetch error:", error);
+    } finally {
+      setFetching(false);
+    }
   };
 
   return (
@@ -54,6 +56,10 @@ export default function DocumentCollection() {
             showSearch
             style={{ width: "100%" }}
             placeholder="collect documents..."
+            notFoundContent={
+              fetching ? <Spin size="small" /> : "No results found"
+            }
+            onFocus={handleFocus}
             onChange={handleChange}
             options={document_opotions}
           />
