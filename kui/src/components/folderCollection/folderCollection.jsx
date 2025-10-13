@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Flex, Typography, Input, Button, Tree, Spin } from "antd";
 import { SyncOutlined } from "@ant-design/icons";
 import { statusService } from "@/status/status";
+import { apiService } from "@/service/api.service";
 
 const { TextArea } = Input;
 const { DirectoryTree } = Tree;
@@ -21,37 +22,15 @@ export default function folderCollection() {
   const handlePost = async () => {
     if (!selectedCollection || !selectrion_query.trim()) return;
     setFetchingFolder(true);
-    try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/select/${encodeURIComponent(
-          selectedCollection
-        )}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            query: selectrion_query,
-          }),
-        }
-      );
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+    const response = await apiService.postCollection(selectedCollection, {
+      query: selectrion_query,
+    });
 
-      const result = await response.json();
-
-      const uuid_list = result.selected_documents.map((_) => _.uuid);
-
-      setCheckedKeys(uuid_list);
-      statusService.patchStatus("fileCollection", uuid_list);
-    } catch (error) {
-      console.error("error:", error);
-    } finally {
-      setFetchingFolder(false);
-    }
+    const uuid_list = response.selected_documents.map((_) => _.uuid);
+    setCheckedKeys(uuid_list);
+    statusService.patchStatus("fileCollection", uuid_list);
+    setFetchingFolder(false);
   };
 
   const handleKeyDown = (e) => {
@@ -73,34 +52,19 @@ export default function folderCollection() {
   useEffect(() => {
     const fetchFolderData = async () => {
       setFetchingFolder(true);
-      try {
-        const response = await fetch(
-          `http://127.0.0.1:8000/documents/${encodeURIComponent(
-            selectedCollection
-          )}`
-        );
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+      const response = await apiService.getCollection(selectedCollection);
 
-        const result = await response.json();
-
-        const new_folder_tree = [];
-
-        result["documents"].forEach((datum) => {
-          new_folder_tree.push({
-            title: datum.file_path,
-            key: datum.uuid,
-          });
+      const new_folder_tree = [];
+      response["documents"].forEach((datum) => {
+        new_folder_tree.push({
+          title: datum.file_path,
+          key: datum.uuid,
         });
+      });
 
-        setFolderTree(new_folder_tree);
-      } catch (error) {
-        console.error("error:", error);
-      } finally {
-        setFetchingFolder(false);
-      }
+      setFolderTree(new_folder_tree);
+      setFetchingFolder(false);
     };
 
     if (selectedCollection) {

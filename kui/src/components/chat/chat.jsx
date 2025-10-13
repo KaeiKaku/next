@@ -2,6 +2,7 @@ import { Fragment, useState, useEffect, useRef } from "react";
 import { Flex, Typography, Input, Button, Skeleton } from "antd";
 import { SendOutlined } from "@ant-design/icons";
 import { statusService } from "@/status/status";
+import { apiService } from "@/service/api.service";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import styles from "./chat.module.css";
@@ -36,37 +37,21 @@ export default function Chat() {
 
     setQuery("");
 
-    try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/inquire/${encodeURIComponent(
-          documentCollection
-        )}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(query_json),
-        }
-      );
-
-      setQuery("");
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    const response = await apiService.postInquireCollections(
+      documentCollection,
+      {
+        query: query_json,
       }
+    );
 
-      const result = await response.json();
-      setMessages((prev) =>
-        prev.map((msg, index) =>
-          index === prev.length - 1 ? { ...msg, response: result.answer } : msg
-        )
-      );
-    } catch (error) {
-      console.error("error:", error);
-    } finally {
-      setFetchingAIResponse(false);
-    }
+    const result = await response.json();
+    setMessages((prev) =>
+      prev.map((msg, index) =>
+        index === prev.length - 1 ? { ...msg, response: result.answer } : msg
+      )
+    );
+
+    setFetchingAIResponse(false);
   };
 
   const handleKeyDown = (e) => {

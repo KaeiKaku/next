@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Flex, Typography, Select, Space, Spin } from "antd";
 import { statusService } from "@/status/status";
+import { apiService } from "@/service/api.service";
 import style from "./documentCollection.module.css";
 
 export default function DocumentCollection() {
@@ -15,31 +16,22 @@ export default function DocumentCollection() {
   const handleFocus = async () => {
     if (document_opotions > 0) return;
     setFetching(true);
-    try {
-      const response = await fetch("http://127.0.0.1:8000/collections");
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
 
-      const data = await response.json();
+    const response = await apiService.getCollections();
 
-      const new_document_opotions = [
-        {
-          label: "Documents",
-          title: "Documents",
-          options: (data.collections || "").map((datum) => ({
-            label: datum,
-            value: datum,
-          })),
-        },
-      ];
+    const new_document_opotions = [
+      {
+        label: "Documents",
+        title: "Documents",
+        options: (response.collections || "").map((datum) => ({
+          label: datum,
+          value: datum,
+        })),
+      },
+    ];
 
-      setOptions(new_document_opotions);
-    } catch (error) {
-      console.error("Fetch error:", error);
-    } finally {
-      setFetching(false);
-    }
+    setOptions(new_document_opotions);
+    setFetching(false);
   };
 
   return (
