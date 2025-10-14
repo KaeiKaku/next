@@ -178,7 +178,7 @@ export default function folderCollection() {
         <div style={{ width: "100%", marginTop: "1rem" }}>
           <Spin spinning={fetchingFolder}>
             <Flex gap="large" justify="space-between">
-              <Typography.Title level={4}>similarity</Typography.Title>
+              <Typography.Title level={4}>Similarity</Typography.Title>
               <Slider
                 min={0}
                 max={1}
