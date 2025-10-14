@@ -12,9 +12,9 @@ const _fetchDataGet = async (endpoint) => {
   return response.json();
 };
 
-const _fetchDataGetQueryString = async (endpoint, queryString) => {
+const _fetchDataGetQueryString = async (endpoint, collection) => {
   const response = await fetch(
-    `${endpoint}/${encodeURIComponent(queryString)}`
+    `${endpoint}/${encodeURIComponent(collection)}/documents`
   );
   if (!response.ok) {
     throw new Error(_apiErrorMessage(endpoint, response.status));
@@ -22,9 +22,14 @@ const _fetchDataGetQueryString = async (endpoint, queryString) => {
   return response.json();
 };
 
-const _fetchDataPost = async (endpoint, queryString, queryData) => {
+const _fetchDataPost = async (
+  endpoint,
+  collection,
+  queryData,
+  extraEndpoint
+) => {
   const response = await fetch(
-    `${endpoint}/${encodeURIComponent(queryString)}`,
+    `${endpoint}/${encodeURIComponent(collection)}/${extraEndpoint}`,
     {
       method: "POST",
       headers: {
@@ -34,17 +39,17 @@ const _fetchDataPost = async (endpoint, queryString, queryData) => {
     }
   );
   if (!response.ok) {
-    throw new Error(_apiErrorMessage(endpoint, response.status));
+    throw new Error(_apiErrorMessage(endpoint2, response.status));
   }
   return response.json();
 };
 
 export const apiService = {
-  getCollections: () => _fetchDataGet(ENDPOINTS.GET_COLLECTIONS),
-  getCollection: (collection) =>
-    _fetchDataGetQueryString(ENDPOINTS.GET_DOCUMENTS_COLLECTION, collection),
-  postCollection: (collection) =>
-    _fetchDataPost(ENDPOINTS.POST_SELECT_COLLECTION, collection, queryData),
-  postInquireCollections: (collection) =>
-    _fetchDataPost(ENDPOINTS.POST_INQUIRE_COLLECTION, collection, queryData),
+  getCollections: () => _fetchDataGet(ENDPOINTS.COLLECTIONS),
+  getDocuments: (collection) =>
+    _fetchDataGetQueryString(ENDPOINTS.COLLECTIONS, collection),
+  postSelectDocuments: (collection, queryData) =>
+    _fetchDataPost(ENDPOINTS.COLLECTIONS, collection, queryData, "select"),
+  postInquireDocuments: (collection, queryData) =>
+    _fetchDataPost(ENDPOINTS.COLLECTIONS, collection, queryData, "inquire"),
 };

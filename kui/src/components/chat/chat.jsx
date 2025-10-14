@@ -37,17 +37,14 @@ export default function Chat() {
 
     setQuery("");
 
-    const response = await apiService.postInquireCollections(
+    const response = await apiService.postInquireDocuments(
       documentCollection,
-      {
-        query: query_json,
-      }
+      query_json
     );
 
-    const result = await response.json();
     setMessages((prev) =>
       prev.map((msg, index) =>
-        index === prev.length - 1 ? { ...msg, response: result.answer } : msg
+        index === prev.length - 1 ? { ...msg, response: response.answer } : msg
       )
     );
 
