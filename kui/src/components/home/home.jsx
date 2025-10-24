@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Flex, Splitter } from "antd";
 import Header from "@/components/header/header";
 import DocumentCollection from "@/components/documentCollection/documentCollection";

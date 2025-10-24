@@ -6,9 +6,7 @@ import {
   Button,
   Tree,
   Spin,
-  Col,
   InputNumber,
-  Row,
   Slider,
   Popover,
   Divider,
@@ -26,9 +24,103 @@ export default function folderCollection() {
   const [selectedCollection, setSelectedCollection] = useState("");
   const [folderTree, setFolderTree] = useState([]);
   const [checkedKeys, setCheckedKeys] = useState();
-  const [inputValueSim, setInputValue] = useState(0);
+  const [inputValueSim, setInputValueSim] = useState(0);
+
+  const genTree = (data) => {
+    const root = [];
+
+    function addPath(tree, parts, datum) {
+      if (!parts.length) return;
+      const title = parts[0];
+      let existing = tree.find((item) => item.title === title);
+      if (!existing) {
+        const isLeaf = parts.length === 1;
+        existing = {
+          title,
+          key: isLeaf ? datum.uuid : title,
+          ...(isLeaf && {
+            similarity: 0,
+            keywords: datum.keywords,
+            summary: datum.summary,
+            tags: datum.tags,
+          }),
+        };
+        tree.push(existing);
+      }
+      if (parts.length > 1) {
+        if (!existing.children) existing.children = [];
+        addPath(existing.children, parts.slice(1), datum);
+      }
+    }
+
+    data.forEach((datum) => {
+      const parts = datum.file_path.trim().split("\\");
+      addPath(root, parts, datum);
+    });
+
+    return root;
+  };
+
+  const sortTreeBySimilarity = (data, order = "desc") => {
+    const compare = (a, b) => {
+      const sa = a.similarity ?? -Infinity;
+      const sb = b.similarity ?? -Infinity;
+      return order === "asc" ? sa - sb : sb - sa;
+    };
+
+    return data
+      .map((node) => {
+        if (node.children && Array.isArray(node.children)) {
+          return {
+            ...node,
+            children: sortTreeBySimilarity(node.children, order),
+          };
+        }
+        return node;
+      })
+      .sort(compare);
+  };
+
+  const buildNodeMap = (tree) => {
+    const map = new Map();
+
+    function traverse(nodes) {
+      nodes.forEach((node) => {
+        map.set(node.key, node);
+        if (node.children) traverse(node.children);
+      });
+    }
+
+    traverse(tree);
+    return map;
+  };
+
+  const getCheckedKeysBySimilarity = (tree, threshold) => {
+    let keys = [];
+
+    function traverse(nodes) {
+      nodes.forEach((node) => {
+        if (node.similarity > threshold) {
+          keys.push(node.key);
+        }
+        if (node.children) {
+          traverse(node.children);
+        }
+      });
+    }
+
+    traverse(tree);
+    return keys;
+  };
 
   const renderTitle = (node) => {
+    const hasKeywords =
+      Array.isArray(node.keywords) && node.keywords.length > 0;
+    const hasSummary = Boolean(node.summary);
+
+    if (!hasKeywords && !hasSummary) {
+      return <span>{node.title}</span>;
+    }
     return (
       <Popover
         content={
@@ -42,7 +134,7 @@ export default function folderCollection() {
               <Divider orientation="left" plain>
                 <span>keywords</span>
               </Divider>
-              <p>{node.keywords.join(",")}</p>
+              <p>{node.keywords?.join(",")}</p>
               <Divider orientation="left" plain>
                 <span>summary</span>
               </Divider>
@@ -56,7 +148,12 @@ export default function folderCollection() {
         trigger="hover"
         placement="topRight"
       >
-        <span>{node.title}</span>
+        <span>
+          <small style={{ marginRight: "0.5rem" }}>
+            <i>{(Math.trunc(node.similarity * 1000) / 1000).toFixed(3)}</i>
+          </small>
+          {node.title}
+        </span>
       </Popover>
     );
   };
@@ -69,14 +166,15 @@ export default function folderCollection() {
     if (Number.isNaN(inputValueSim)) {
       return;
     }
-    setInputValue(inputValueSim);
+    setInputValueSim(inputValueSim);
   };
 
   const onChangeCompleteSim = (inputValueSim) => {
-    setInputValue(inputValueSim);
-    const checkedKeysSim = folderTree
-      .filter((folder) => folder.similarity > inputValueSim)
-      .map((folder) => folder.key);
+    setInputValueSim(inputValueSim);
+    const checkedKeysSim = getCheckedKeysBySimilarity(
+      folderTree,
+      inputValueSim
+    );
     setCheckedKeys(checkedKeysSim);
   };
 
@@ -88,7 +186,7 @@ export default function folderCollection() {
       query: selectrionQuery,
     });
 
-    const folderMap = new Map(folderTree.map((folder) => [folder.key, folder]));
+    const folderMap = buildNodeMap(folderTree);
     const uuid_list = response.selected_documents.map((doc) => {
       const folder = folderMap.get(doc.uuid);
       if (folder) {
@@ -97,7 +195,9 @@ export default function folderCollection() {
       return doc.uuid;
     });
 
-    setFolderTree(Array.from(folderMap.values()));
+    const sortedTree = sortTreeBySimilarity(folderTree);
+
+    setFolderTree(sortedTree);
     setCheckedKeys(uuid_list);
     setFetchingFolder(false);
   };
@@ -115,7 +215,23 @@ export default function folderCollection() {
       setSelectedCollection(_selectedCollection);
     });
 
-    return () => docSub.unsubscribe();
+    const documents$ = statusService.getStatus$("documents");
+    const documentsSub = documents$.subscribe((_documents) => {
+      console.log(`documents: `);
+      console.log(_documents);
+    });
+
+    const collections$ = statusService.getStatus$("collections");
+    const collectionsSub = collections$.subscribe((_collections) => {
+      console.log(`collections: `);
+      console.log(_collections);
+    });
+
+    return () => {
+      docSub.unsubscribe();
+      documentsSub.unsubscribe();
+      collectionsSub.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -124,17 +240,10 @@ export default function folderCollection() {
 
       const response = await apiService.getDocuments(selectedCollection);
 
-      const new_folderTree = [];
-      response["documents"].forEach((datum) => {
-        new_folderTree.push({
-          title: datum.file_path,
-          key: datum.uuid,
-          similarity: undefined,
-          keywords: datum.keywords,
-          summary: datum.summary,
-        });
-      });
+      genTree(response["documents"]);
 
+      const new_folderTree = genTree(response["documents"]);
+      statusService.patchStatus("documents", new_folderTree);
       setFolderTree(new_folderTree);
       setFetchingFolder(false);
     };
@@ -153,12 +262,11 @@ export default function folderCollection() {
       <Flex
         justify="flex-start"
         align="flex-start"
-        style={{ padding: "1rem", overflow: "overlay" }}
+        style={{ padding: "1rem", overflow: "hidden" }}
         flex={1}
         vertical
       >
         <Typography.Title level={4}>Selection Query</Typography.Title>
-
         <TextArea
           value={selectrionQuery}
           placeholder="send a message..."
@@ -200,18 +308,28 @@ export default function folderCollection() {
                 value={inputValueSim}
               />
             </Flex>
-            <DirectoryTree
-              checkable
-              showLine
-              defaultExpandAll
-              treeData={folderTree}
-              titleRender={(node) => renderTitle(node)}
-              selectable={false}
-              checkedKeys={checkedKeys}
-              onCheck={onCheck}
-            />
+            {folderTree.length > 0 && (
+              <DirectoryTree
+                checkable
+                showLine
+                defaultExpandAll
+                treeData={folderTree}
+                titleRender={(node) => renderTitle(node)}
+                selectable={false}
+                checkedKeys={checkedKeys}
+                onCheck={onCheck}
+              />
+            )}
           </Spin>
         </div>
+        <div
+          style={{
+            width: "100%",
+            height: "50px",
+            marginTop: "1rem",
+            backgroundColor: "red",
+          }}
+        ></div>
       </Flex>
     </>
   );

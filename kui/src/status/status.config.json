@@ -1,7 +1,6 @@
 {
-  "isLoadingDocuments": false,
-  "isLoadingFiles": false,
-  "isInquiring": false,
+  "collections": [],
+  "documents": [],
   "documentCollection": "",
   "fileCollection": []
 }

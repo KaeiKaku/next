@@ -194,11 +194,15 @@ export const statusService = {
 
     return source$.pipe(
       map((status) => _getPatchValueBypath(status, path)),
-      distinctUntilChanged((prev, curr) =>
-        _isPlainObject(prev) && _isPlainObject(curr)
-          ? JSON.stringify(prev) === JSON.stringify(curr)
-          : prev === curr
-      ),
+      distinctUntilChanged((prev, curr) => {
+        if (Array.isArray(prev) && Array.isArray(curr)) {
+          return JSON.stringify(prev) === JSON.stringify(curr);
+        }
+        if (_isPlainObject(prev) && _isPlainObject(curr)) {
+          return JSON.stringify(prev) === JSON.stringify(curr);
+        }
+        return prev === curr;
+      }),
       map((val) => {
         return JSON.parse(JSON.stringify(val));
       })

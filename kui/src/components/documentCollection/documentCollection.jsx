@@ -10,7 +10,6 @@ export default function DocumentCollection() {
 
   const handleChange = (value) => {
     statusService.patchStatus("documentCollection", value);
-    statusService.patchStatus("fileCollection", []);
   };
 
   const handleFocus = async () => {
@@ -24,11 +23,13 @@ export default function DocumentCollection() {
         label: "Documents",
         title: "Documents",
         options: (response.collections || "").map((datum) => ({
-          label: datum,
-          value: datum,
+          label: datum["collection_name"],
+          value: datum["collection_name"],
         })),
       },
     ];
+
+    statusService.patchStatus("collections", response["collections"]);
 
     setOptions(new_document_opotions);
     setFetching(false);

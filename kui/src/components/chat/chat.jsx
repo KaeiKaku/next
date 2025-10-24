@@ -63,9 +63,11 @@ export default function Chat() {
     const fileCollection$ = statusService.getStatus$("fileCollection");
     const docSub = documentCollection$.subscribe((_documentCollection) => {
       setDocumentCollection(_documentCollection);
+      console.warn(`document collection: ${_documentCollection}`);
     });
     const fileSub = fileCollection$.subscribe((_fileCollection) => {
       setFileCollection(_fileCollection);
+      console.warn(`file collection: ${_fileCollection}`);
     });
 
     return () => {
