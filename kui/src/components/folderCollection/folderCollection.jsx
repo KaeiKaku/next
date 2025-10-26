@@ -10,6 +10,9 @@ import {
   Slider,
   Popover,
   Divider,
+  Tabs,
+  Select,
+  Space,
 } from "antd";
 import { SyncOutlined } from "@ant-design/icons";
 import { statusService } from "@/status/status";
@@ -17,6 +20,94 @@ import { apiService } from "@/service/api.service";
 
 const { TextArea } = Input;
 const { DirectoryTree } = Tree;
+
+const items = [
+  {
+    key: "Category",
+    label: "Category",
+  },
+  {
+    key: "Tag",
+    label: "Tag",
+  },
+];
+
+const treeData = [
+  {
+    title: "0-0",
+    key: "0-0",
+    children: [
+      {
+        title: "0-0-0",
+        key: "0-0-0",
+        children: [
+          { title: "0-0-0-0", key: "0-0-0-0" },
+          { title: "0-0-0-1", key: "0-0-0-1" },
+          { title: "0-0-0-2", key: "0-0-0-2" },
+        ],
+      },
+      {
+        title: "0-0-1",
+        key: "0-0-1",
+        children: [
+          { title: "0-0-1-0", key: "0-0-1-0" },
+          { title: "0-0-1-1", key: "0-0-1-1" },
+          { title: "0-0-1-2", key: "0-0-1-2" },
+        ],
+      },
+      {
+        title: "0-0-2",
+        key: "0-0-2",
+      },
+    ],
+  },
+  {
+    title: "0-1",
+    key: "0-1",
+    children: [
+      { title: "0-1-0-0", key: "0-1-0-0" },
+      { title: "0-1-0-1", key: "0-1-0-1" },
+      { title: "0-1-0-2", key: "0-1-0-2" },
+    ],
+  },
+  {
+    title: "0-2",
+    key: "0-2",
+  },
+  {
+    title: "0-3",
+    key: "0-3",
+  },
+  {
+    title: "0-4",
+    key: "0-4",
+  },
+  {
+    title: "0-5",
+    key: "0-5",
+  },
+  {
+    title: "0-6",
+    key: "0-6",
+  },
+  {
+    title: "0-7",
+    key: "0-7",
+  },
+  { title: "0-8", key: "0-8" },
+  { title: "0-9", key: "0-9" },
+  { title: "0-10", key: "0-10" },
+  { title: "0-11", key: "0-11" },
+  { title: "0-12", key: "0-12" },
+  { title: "0-13", key: "0-13" },
+  { title: "0-14", key: "0-14" },
+  { title: "0-15", key: "0-15" },
+  { title: "0-16", key: "0-16" },
+  { title: "0-17", key: "0-17" },
+  { title: "0-18", key: "0-18" },
+  { title: "0-19", key: "0-19" },
+  { title: "0-20", key: "0-20" },
+];
 
 export default function folderCollection() {
   const [fetchingFolder, setFetchingFolder] = useState(false);
@@ -265,6 +356,7 @@ export default function folderCollection() {
         style={{ padding: "1rem", overflow: "hidden" }}
         flex={1}
         vertical
+        gap={"small"}
       >
         <Typography.Title level={4}>Selection Query</Typography.Title>
         <TextArea
@@ -274,7 +366,7 @@ export default function folderCollection() {
           onChange={(e) => setSelectionValue(e.target.value)}
           autoSize={{ minRows: 3, maxRows: 10 }}
         />
-        <Flex justify="flex-end" style={{ width: "100%", marginTop: "0.5rem" }}>
+        <Flex justify="flex-end" style={{ width: "100%" }}>
           <Button
             type="primary"
             onClick={handlePost}
@@ -283,53 +375,77 @@ export default function folderCollection() {
             Submit
           </Button>
         </Flex>
-        <div style={{ width: "100%", marginTop: "1rem" }}>
-          <Spin spinning={fetchingFolder}>
-            <Flex gap="large" justify="space-between">
-              <Typography.Title level={4}>Similarity</Typography.Title>
-              <Slider
-                min={0}
-                max={1}
-                style={{
-                  flex: 1,
-                }}
-                value={typeof inputValueSim === "number" ? inputValueSim : 0}
-                disabled={folderTree.length === 0}
-                onChange={onChangeSim}
-                step={0.01}
-                onChangeComplete={onChangeCompleteSim}
-              />
-              <InputNumber
-                min={0}
-                max={1}
-                step={0.01}
-                onChange={onChangeCompleteSim}
-                disabled={folderTree.length === 0}
-                value={inputValueSim}
-              />
-            </Flex>
-            {folderTree.length > 0 && (
-              <DirectoryTree
-                checkable
-                showLine
-                defaultExpandAll
-                treeData={folderTree}
-                titleRender={(node) => renderTitle(node)}
-                selectable={false}
-                checkedKeys={checkedKeys}
-                onCheck={onCheck}
-              />
-            )}
-          </Spin>
-        </div>
+        <Flex gap="small" justify="space-between" style={{ width: "100%" }}>
+          <Typography.Title level={4}>Similarity</Typography.Title>
+          <Slider
+            min={0}
+            max={1}
+            style={{
+              flex: 1,
+            }}
+            value={typeof inputValueSim === "number" ? inputValueSim : 0}
+            disabled={folderTree.length === 0}
+            onChange={onChangeSim}
+            step={0.01}
+            onChangeComplete={onChangeCompleteSim}
+          />
+          <InputNumber
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={onChangeCompleteSim}
+            disabled={folderTree.length === 0}
+            value={inputValueSim}
+          />
+        </Flex>
+        <Tabs
+          defaultActiveKey="1"
+          centered
+          items={items}
+          style={{ width: "100%" }}
+        />
         <div
           style={{
             width: "100%",
-            height: "50px",
-            marginTop: "1rem",
-            backgroundColor: "red",
+            flex: 1,
+            overflow: "auto",
           }}
-        ></div>
+        >
+          <Spin spinning={fetchingFolder}>
+            {/* {folderTree.length > 0 && ( */}
+            <DirectoryTree
+              checkable
+              showLine
+              defaultExpandAll
+              treeData={treeData}
+              titleRender={(node) => renderTitle(node)}
+              selectable={false}
+              checkedKeys={checkedKeys}
+              onCheck={onCheck}
+            />
+            {/* )} */}
+          </Spin>
+        </div>
+        <Flex
+          style={{
+            width: "100%",
+            height: "50px",
+          }}
+          alignContent="center"
+          justify="center"
+          z-index={2}
+        >
+          <Select
+            allowClear
+            placeholder="Prompt Library"
+            options={[
+              { value: "jack", label: "Jack" },
+              { value: "lucy", label: "Lucy" },
+              { value: "Yiminghe", label: "yiminghe" },
+            ]}
+            style={{ flex: 1 }}
+          />
+        </Flex>
       </Flex>
     </>
   );
