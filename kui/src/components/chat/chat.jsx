@@ -59,20 +59,28 @@ export default function Chat() {
   };
 
   useEffect(() => {
-    const documentCollection$ = statusService.getStatus$("documentCollection");
-    const fileCollection$ = statusService.getStatus$("fileCollection");
-    const docSub = documentCollection$.subscribe((_documentCollection) => {
-      setDocumentCollection(_documentCollection);
-      console.warn(`document collection: ${_documentCollection}`);
-    });
-    const fileSub = fileCollection$.subscribe((_fileCollection) => {
-      setFileCollection(_fileCollection);
-      console.warn(`file collection: ${_fileCollection}`);
-    });
+    const docSub = statusService
+      .getStatus$("documentCollection")
+      .subscribe((_documentCollection) => {
+        setDocumentCollection(_documentCollection);
+      });
+
+    const fileSub = statusService
+      .getStatus$("fileCollection")
+      .subscribe((_fileCollection) => {
+        setFileCollection(_fileCollection);
+      });
+
+    const predefinedPromptSub = statusService
+      .getStatus$("predefinedPrompt")
+      .subscribe((_predefinedPrompt) => {
+        setQuery(_predefinedPrompt);
+      });
 
     return () => {
       docSub.unsubscribe();
       fileSub.unsubscribe();
+      predefinedPromptSub.unsubscribe();
     };
   }, []);
 

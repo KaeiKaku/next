@@ -12,7 +12,6 @@ import {
   Divider,
   Tabs,
   Select,
-  Space,
 } from "antd";
 import { SyncOutlined } from "@ant-design/icons";
 import { statusService } from "@/status/status";
@@ -21,94 +20,6 @@ import { apiService } from "@/service/api.service";
 const { TextArea } = Input;
 const { DirectoryTree } = Tree;
 
-const items = [
-  {
-    key: "Category",
-    label: "Category",
-  },
-  {
-    key: "Tag",
-    label: "Tag",
-  },
-];
-
-const treeData = [
-  {
-    title: "0-0",
-    key: "0-0",
-    children: [
-      {
-        title: "0-0-0",
-        key: "0-0-0",
-        children: [
-          { title: "0-0-0-0", key: "0-0-0-0" },
-          { title: "0-0-0-1", key: "0-0-0-1" },
-          { title: "0-0-0-2", key: "0-0-0-2" },
-        ],
-      },
-      {
-        title: "0-0-1",
-        key: "0-0-1",
-        children: [
-          { title: "0-0-1-0", key: "0-0-1-0" },
-          { title: "0-0-1-1", key: "0-0-1-1" },
-          { title: "0-0-1-2", key: "0-0-1-2" },
-        ],
-      },
-      {
-        title: "0-0-2",
-        key: "0-0-2",
-      },
-    ],
-  },
-  {
-    title: "0-1",
-    key: "0-1",
-    children: [
-      { title: "0-1-0-0", key: "0-1-0-0" },
-      { title: "0-1-0-1", key: "0-1-0-1" },
-      { title: "0-1-0-2", key: "0-1-0-2" },
-    ],
-  },
-  {
-    title: "0-2",
-    key: "0-2",
-  },
-  {
-    title: "0-3",
-    key: "0-3",
-  },
-  {
-    title: "0-4",
-    key: "0-4",
-  },
-  {
-    title: "0-5",
-    key: "0-5",
-  },
-  {
-    title: "0-6",
-    key: "0-6",
-  },
-  {
-    title: "0-7",
-    key: "0-7",
-  },
-  { title: "0-8", key: "0-8" },
-  { title: "0-9", key: "0-9" },
-  { title: "0-10", key: "0-10" },
-  { title: "0-11", key: "0-11" },
-  { title: "0-12", key: "0-12" },
-  { title: "0-13", key: "0-13" },
-  { title: "0-14", key: "0-14" },
-  { title: "0-15", key: "0-15" },
-  { title: "0-16", key: "0-16" },
-  { title: "0-17", key: "0-17" },
-  { title: "0-18", key: "0-18" },
-  { title: "0-19", key: "0-19" },
-  { title: "0-20", key: "0-20" },
-];
-
 export default function folderCollection() {
   const [fetchingFolder, setFetchingFolder] = useState(false);
   const [selectrionQuery, setSelectionValue] = useState("");
@@ -116,6 +27,7 @@ export default function folderCollection() {
   const [folderTree, setFolderTree] = useState([]);
   const [checkedKeys, setCheckedKeys] = useState();
   const [inputValueSim, setInputValueSim] = useState(0);
+  const [promptLibrary, setPromptLibrary] = useState([]);
 
   const genTree = (data) => {
     const root = [];
@@ -290,6 +202,7 @@ export default function folderCollection() {
 
     setFolderTree(sortedTree);
     setCheckedKeys(uuid_list);
+    onChangeCompleteSim(0.9);
     setFetchingFolder(false);
   };
 
@@ -300,28 +213,19 @@ export default function folderCollection() {
     }
   };
 
+  const handleChange = (value) => {
+    if (!value) return;
+    statusService.patchStatus("predefinedPrompt", value);
+  };
+
   useEffect(() => {
     const documentCollection$ = statusService.getStatus$("documentCollection");
     const docSub = documentCollection$.subscribe((_selectedCollection) => {
       setSelectedCollection(_selectedCollection);
     });
 
-    const documents$ = statusService.getStatus$("documents");
-    const documentsSub = documents$.subscribe((_documents) => {
-      console.log(`documents: `);
-      console.log(_documents);
-    });
-
-    const collections$ = statusService.getStatus$("collections");
-    const collectionsSub = collections$.subscribe((_collections) => {
-      console.log(`collections: `);
-      console.log(_collections);
-    });
-
     return () => {
       docSub.unsubscribe();
-      documentsSub.unsubscribe();
-      collectionsSub.unsubscribe();
     };
   }, []);
 
@@ -334,7 +238,14 @@ export default function folderCollection() {
       genTree(response["documents"]);
 
       const new_folderTree = genTree(response["documents"]);
-      statusService.patchStatus("documents", new_folderTree);
+
+      const promptLibrary =
+        statusService
+          .getSnapshot("collections")
+          .find((c) => c.collection_name === selectedCollection)
+          ?.prompts?.map((p) => ({ value: p, label: p })) ?? [];
+
+      setPromptLibrary(promptLibrary);
       setFolderTree(new_folderTree);
       setFetchingFolder(false);
     };
@@ -401,7 +312,16 @@ export default function folderCollection() {
         <Tabs
           defaultActiveKey="1"
           centered
-          items={items}
+          items={[
+            {
+              key: "Category",
+              label: "Category",
+            },
+            {
+              key: "Tag",
+              label: "Tag",
+            },
+          ]}
           style={{ width: "100%" }}
         />
         <div
@@ -412,18 +332,18 @@ export default function folderCollection() {
           }}
         >
           <Spin spinning={fetchingFolder}>
-            {/* {folderTree.length > 0 && ( */}
-            <DirectoryTree
-              checkable
-              showLine
-              defaultExpandAll
-              treeData={treeData}
-              titleRender={(node) => renderTitle(node)}
-              selectable={false}
-              checkedKeys={checkedKeys}
-              onCheck={onCheck}
-            />
-            {/* )} */}
+            {folderTree.length > 0 && (
+              <DirectoryTree
+                checkable
+                showLine
+                defaultExpandAll
+                treeData={folderTree}
+                titleRender={(node) => renderTitle(node)}
+                selectable={false}
+                checkedKeys={checkedKeys}
+                onCheck={onCheck}
+              />
+            )}
           </Spin>
         </div>
         <Flex
@@ -431,18 +351,15 @@ export default function folderCollection() {
             width: "100%",
             height: "50px",
           }}
-          alignContent="center"
+          align="center"
           justify="center"
           z-index={2}
         >
           <Select
             allowClear
             placeholder="Prompt Library"
-            options={[
-              { value: "jack", label: "Jack" },
-              { value: "lucy", label: "Lucy" },
-              { value: "Yiminghe", label: "yiminghe" },
-            ]}
+            options={promptLibrary}
+            onChange={handleChange}
             style={{ flex: 1 }}
           />
         </Flex>
