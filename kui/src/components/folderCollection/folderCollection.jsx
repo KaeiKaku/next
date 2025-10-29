@@ -24,12 +24,16 @@ export default function folderCollection() {
   const [fetchingFolder, setFetchingFolder] = useState(false);
   const [selectrionQuery, setSelectionValue] = useState("");
   const [selectedCollection, setSelectedCollection] = useState("");
-  const [folderTree, setFolderTree] = useState([]);
-  const [checkedKeys, setCheckedKeys] = useState();
+  const [categoryTree, setCategoryTree] = useState([]);
+  const [tagTree, setTagTree] = useState([]);
+  const [treeData, setTreeData] = useState([]);
+  const [tabValue, setTabValue] = useState("Category");
+  const [checkedKeys, setCheckedKeys] = useState([]);
+  const [expandedKeys, setExpandedKeys] = useState([]);
   const [inputValueSim, setInputValueSim] = useState(0);
   const [promptLibrary, setPromptLibrary] = useState([]);
 
-  const genTree = (data) => {
+  const genTreeCategory = (data) => {
     const root = [];
 
     function addPath(tree, parts, datum) {
@@ -64,23 +68,79 @@ export default function folderCollection() {
     return root;
   };
 
-  const sortTreeBySimilarity = (data, order = "desc") => {
+  const genTreeTags = (data = []) => {
+    const collections = statusService.getSnapshot("collections") || [];
+    const current = collections.find(
+      (c) => c.collection_name === selectedCollection
+    );
+    if (!current || !Array.isArray(current.tags)) return [];
+
+    const tagMap = {};
+    for (const datum of data) {
+      if (!Array.isArray(datum.tags)) continue;
+      const parts = datum.file_path.split(/[/\\]/);
+      const fileName = parts[parts.length - 1];
+      for (const tag of datum.tags) {
+        (tagMap[tag] ||= []).push({
+          title: fileName,
+          key: `${tag}_${datum.uuid}`,
+          keywords: datum.keywords,
+          summary: datum.summary,
+          similarity: 0,
+        });
+      }
+    }
+
+    const tagTree = current.tags
+      .map((tag) => ({
+        title: tag,
+        key: tag,
+        children: tagMap[tag] || [],
+      }))
+      .filter((node) => node.children.length > 0);
+
+    return tagTree;
+  };
+
+  const getAllLeafKeys = (treeNodes) => {
+    let keys = [];
+
+    treeNodes.forEach((node) => {
+      if (!node.children || node.children.length === 0) {
+        keys.push(node.key);
+      } else {
+        keys = keys.concat(getAllLeafKeys(node.children));
+      }
+    });
+
+    return keys;
+  };
+
+  const getAllParentKeys = (treeNodes) => {
+    let keys = [];
+    treeNodes.forEach((node) => {
+      if (node.children && node.children.length > 0) {
+        keys.push(node.key);
+        keys = keys.concat(getAllParentKeys(node.children));
+      }
+    });
+    return keys;
+  };
+
+  const sortTreeBySimilarity = (nodes, order = "desc") => {
+    if (!Array.isArray(nodes)) return nodes;
+
     const compare = (a, b) => {
       const sa = a.similarity ?? -Infinity;
       const sb = b.similarity ?? -Infinity;
       return order === "asc" ? sa - sb : sb - sa;
     };
 
-    return data
-      .map((node) => {
-        if (node.children && Array.isArray(node.children)) {
-          return {
-            ...node,
-            children: sortTreeBySimilarity(node.children, order),
-          };
-        }
-        return node;
-      })
+    return nodes
+      .map((node) => ({
+        ...node,
+        children: sortTreeBySimilarity(node.children, order),
+      }))
       .sort(compare);
   };
 
@@ -161,8 +221,34 @@ export default function folderCollection() {
     );
   };
 
-  const onCheck = (checked_uuid_list) => {
-    setCheckedKeys(checked_uuid_list);
+  const onCheck = (checkedKeysFromEvent, info) => {
+    let finalCheckedKeys = [];
+
+    if (tabValue === "Tag") {
+      const leafKeys = getAllLeafKeys(tagTree);
+      const nodeSuffix = info.node.key.split("_").pop();
+
+      const matchedLeafKeys = leafKeys.filter((k) => k.endsWith(nodeSuffix));
+
+      if (info.checked) {
+        finalCheckedKeys = [
+          ...new Set([...checkedKeysFromEvent, ...matchedLeafKeys]),
+        ];
+      } else {
+        finalCheckedKeys = checkedKeysFromEvent.filter(
+          (k) => !matchedLeafKeys.includes(k)
+        );
+      }
+
+      finalCheckedKeys = finalCheckedKeys.filter((k) => leafKeys.includes(k));
+    } else if (tabValue === "Category") {
+      const leafKeys = getAllLeafKeys(categoryTree);
+      finalCheckedKeys = checkedKeysFromEvent.filter((k) =>
+        leafKeys.includes(k)
+      );
+    }
+
+    setCheckedKeys(finalCheckedKeys);
   };
 
   const onChangeSim = (inputValueSim) => {
@@ -174,10 +260,11 @@ export default function folderCollection() {
 
   const onChangeCompleteSim = (inputValueSim) => {
     setInputValueSim(inputValueSim);
-    const checkedKeysSim = getCheckedKeysBySimilarity(
-      folderTree,
-      inputValueSim
-    );
+
+    const treeData = tabValue === "Tag" ? tagTree : categoryTree;
+
+    const checkedKeysSim = getCheckedKeysBySimilarity(treeData, inputValueSim);
+
     setCheckedKeys(checkedKeysSim);
   };
 
@@ -189,18 +276,32 @@ export default function folderCollection() {
       query: selectrionQuery,
     });
 
-    const folderMap = buildNodeMap(folderTree);
+    const categoryMap = buildNodeMap(categoryTree);
+    const tagMap = buildNodeMap(tagTree);
     const uuid_list = response.selected_documents.map((doc) => {
-      const folder = folderMap.get(doc.uuid);
-      if (folder) {
-        folder.similarity = doc.similarity;
+      const { uuid, _, similarity } = doc;
+      // update categoryMap
+      const categoryItem = categoryMap.get(uuid);
+      if (categoryItem) {
+        categoryItem.similarity = similarity;
       }
-      return doc.uuid;
+      // update tagMap
+      for (const [key, node] of tagMap) {
+        if (key.endsWith(`_${uuid}`)) {
+          node.similarity = similarity;
+        }
+      }
+
+      return uuid;
     });
 
-    const sortedTree = sortTreeBySimilarity(folderTree);
+    console.log(tagTree);
 
-    setFolderTree(sortedTree);
+    const sortedcategoryTree = sortTreeBySimilarity(categoryTree);
+    const sortedTagTree = sortTreeBySimilarity(tagTree);
+
+    setCategoryTree(sortedcategoryTree);
+    setTagTree(sortedTagTree);
     setCheckedKeys(uuid_list);
     onChangeCompleteSim(0.9);
     setFetchingFolder(false);
@@ -219,10 +320,11 @@ export default function folderCollection() {
   };
 
   useEffect(() => {
-    const documentCollection$ = statusService.getStatus$("documentCollection");
-    const docSub = documentCollection$.subscribe((_selectedCollection) => {
-      setSelectedCollection(_selectedCollection);
-    });
+    const docSub = statusService
+      .getStatus$("documentCollection")
+      .subscribe((_selectedCollection) => {
+        setSelectedCollection(_selectedCollection);
+      });
 
     return () => {
       docSub.unsubscribe();
@@ -235,18 +337,18 @@ export default function folderCollection() {
 
       const response = await apiService.getDocuments(selectedCollection);
 
-      genTree(response["documents"]);
-
-      const new_folderTree = genTree(response["documents"]);
+      // update categoryMap
+      setCategoryTree(genTreeCategory(response["documents"]));
+      // update tagMap
+      setTagTree(genTreeTags(response["documents"]));
 
       const promptLibrary =
         statusService
           .getSnapshot("collections")
           .find((c) => c.collection_name === selectedCollection)
           ?.prompts?.map((p) => ({ value: p, label: p })) ?? [];
-
       setPromptLibrary(promptLibrary);
-      setFolderTree(new_folderTree);
+
       setFetchingFolder(false);
     };
 
@@ -254,6 +356,33 @@ export default function folderCollection() {
       fetchFolderData();
     }
   }, [selectedCollection]);
+
+  useEffect(() => {
+    const map = {
+      Category: categoryTree,
+      Tag: tagTree,
+    };
+    setTreeData(map[tabValue] || []);
+    setExpandedKeys(getAllParentKeys(map[tabValue]));
+    if (checkedKeys.length === 0) return;
+
+    const categoryKeys = [
+      ...new Set(checkedKeys.map((k) => k.split("_").pop())),
+    ];
+
+    const finalKeys =
+      tabValue === "Tag"
+        ? [
+            ...new Set(
+              categoryKeys.flatMap((k) =>
+                getAllLeafKeys(tagTree).filter((tagK) => tagK.endsWith(k))
+              )
+            ),
+          ]
+        : categoryKeys;
+
+    setCheckedKeys(finalKeys);
+  }, [tabValue, categoryTree, tagTree]);
 
   useEffect(() => {
     statusService.patchStatus("fileCollection", checkedKeys);
@@ -295,7 +424,7 @@ export default function folderCollection() {
               flex: 1,
             }}
             value={typeof inputValueSim === "number" ? inputValueSim : 0}
-            disabled={folderTree.length === 0}
+            disabled={treeData.length === 0}
             onChange={onChangeSim}
             step={0.01}
             onChangeComplete={onChangeCompleteSim}
@@ -305,13 +434,16 @@ export default function folderCollection() {
             max={1}
             step={0.01}
             onChange={onChangeCompleteSim}
-            disabled={folderTree.length === 0}
+            disabled={treeData.length === 0}
             value={inputValueSim}
           />
         </Flex>
         <Tabs
-          defaultActiveKey="1"
+          defaultActiveKey="Category"
           centered
+          style={{ width: "100%" }}
+          value={tabValue}
+          onChange={(value) => setTabValue(value)}
           items={[
             {
               key: "Category",
@@ -322,7 +454,6 @@ export default function folderCollection() {
               label: "Tag",
             },
           ]}
-          style={{ width: "100%" }}
         />
         <div
           style={{
@@ -331,19 +462,22 @@ export default function folderCollection() {
             overflow: "auto",
           }}
         >
-          <Spin spinning={fetchingFolder}>
-            {folderTree.length > 0 && (
-              <DirectoryTree
-                checkable
-                showLine
-                defaultExpandAll
-                treeData={folderTree}
-                titleRender={(node) => renderTitle(node)}
-                selectable={false}
-                checkedKeys={checkedKeys}
-                onCheck={onCheck}
-              />
-            )}
+          <Spin
+            spinning={fetchingFolder}
+            style={{
+              position: "relative",
+            }}
+          >
+            <DirectoryTree
+              checkable
+              showLine
+              selectable={false}
+              treeData={treeData}
+              expandedKeys={expandedKeys}
+              titleRender={(node) => renderTitle(node)}
+              checkedKeys={checkedKeys}
+              onCheck={onCheck}
+            />
           </Spin>
         </div>
         <Flex

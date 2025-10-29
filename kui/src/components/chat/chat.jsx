@@ -68,7 +68,11 @@ export default function Chat() {
     const fileSub = statusService
       .getStatus$("fileCollection")
       .subscribe((_fileCollection) => {
-        setFileCollection(_fileCollection);
+        const finalFileCollection = [
+          ...new Set(_fileCollection.map((f) => f.split("_").pop())),
+        ];
+        setFileCollection(finalFileCollection);
+        console.log(finalFileCollection);
       });
 
     const predefinedPromptSub = statusService
