@@ -334,7 +334,9 @@ export default function folderCollection() {
     setCategoryTree(sortedcategoryTree);
     setTagTree(sortedTagTree);
     setCheckedKeys(uuid_list);
-    onChangeCompleteSim((Math.trunc(maxSimilarity * 1000) / 1000).toFixed(3));
+    onChangeCompleteSim(
+      Number((Math.trunc(maxSimilarity * 1000) / 1000).toFixed(3))
+    );
     setFetchingFolder(false);
   };
 
@@ -384,6 +386,10 @@ export default function folderCollection() {
           }))
         : [];
       setPromptLibrary(promptLibrary);
+
+      // reset
+      setInputValueSim(0.0);
+      setCheckedKeys([]);
 
       setFetchingFolder(false);
     };
