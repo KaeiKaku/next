@@ -17,6 +17,7 @@ export default function Chat() {
   const [fileCollection, setFileCollection] = useState();
   const [messages, setMessages] = useState([]);
   const latestMessageRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const handleQuery = async () => {
     if (!documentCollection || !fileCollection?.length || !query.trim()) return;
@@ -79,6 +80,7 @@ export default function Chat() {
       .getStatus$("predefinedPrompt")
       .subscribe((_predefinedPrompt) => {
         setQuery(_predefinedPrompt);
+        textareaRef.current?.focus();
       });
 
     return () => {
@@ -143,6 +145,7 @@ export default function Chat() {
         <Flex justify="center" className={styles.queryBox_con}>
           <Flex className={styles.textarea_con} vertical>
             <TextArea
+              ref={textareaRef}
               value={query}
               variant="borderless"
               placeholder="send a message..."

@@ -9,6 +9,7 @@
   --header-height: 50px;
   --document-colletion: 10rem;
   --min-thread-width: 600px;
+  --medium-thread-width: 800px;
   --max-thread-width: 1000px;
   /* Gray */
   --gray-100: #f7f7f7;
@@ -100,7 +101,6 @@
   padding: 0;
   box-sizing: border-box;
   scrollbar-color: var(--gray-100) transparent;
-  white-space: normal;
 }
 
 html {
@@ -153,4 +153,13 @@ div#root {
   width: 100dvw;
   height: 100dvh;
   overflow: hidden;
+}
+
+/* overwrite */
+.ant-tree-node-content-wrapper {
+  display: inline-block;
+  max-width: 30rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }

@@ -12,6 +12,7 @@ import {
   Divider,
   Tabs,
   Select,
+  Badge,
 } from "antd";
 import { SyncOutlined } from "@ant-design/icons";
 import { statusService } from "@/status/status";
@@ -31,7 +32,19 @@ export default function folderCollection() {
   const [checkedKeys, setCheckedKeys] = useState([]);
   const [expandedKeys, setExpandedKeys] = useState([]);
   const [inputValueSim, setInputValueSim] = useState(0);
+  const [BadgeValue, setBadgeValue] = useState("Checked: 0");
   const [promptLibrary, setPromptLibrary] = useState([]);
+
+  const checkedCountContent = (
+    <Badge.Ribbon text={BadgeValue}>
+      <span
+        style={{
+          display: "inline-block",
+          width: "10rem",
+        }}
+      ></span>
+    </Badge.Ribbon>
+  );
 
   const genTreeCategory = (data) => {
     const root = [];
@@ -211,7 +224,11 @@ export default function folderCollection() {
         trigger="hover"
         placement="topRight"
       >
-        <span>
+        <span
+          style={{
+            whiteSpace: "nowrap",
+          }}
+        >
           <small style={{ marginRight: "0.5rem" }}>
             <i>{(Math.trunc(node.similarity * 1000) / 1000).toFixed(3)}</i>
           </small>
@@ -224,21 +241,28 @@ export default function folderCollection() {
   const onCheck = (checkedKeysFromEvent, info) => {
     let finalCheckedKeys = [];
 
-    if (tabValue === "Tag") {
-      const leafKeys = getAllLeafKeys(tagTree);
-      const nodeSuffix = info.node.key.split("_").pop();
+    const getMatchedLeafKeys = (tree, node) => {
+      const leafKeys = getAllLeafKeys(tree);
+      const nodeSuffix = node.key.split("_").pop();
 
-      const matchedLeafKeys = leafKeys.filter((k) => k.endsWith(nodeSuffix));
+      let matched = leafKeys.filter((k) => k.endsWith(nodeSuffix));
 
-      if (info.checked) {
-        finalCheckedKeys = [
-          ...new Set([...checkedKeysFromEvent, ...matchedLeafKeys]),
-        ];
-      } else {
-        finalCheckedKeys = checkedKeysFromEvent.filter(
-          (k) => !matchedLeafKeys.includes(k)
+      if (matched.length === 0 && node.children?.length) {
+        const childSuffixes = node.children.map((c) => c.key.split("_").pop());
+        matched = leafKeys.filter((k) =>
+          childSuffixes.some((suf) => k.endsWith(suf))
         );
       }
+
+      return { leafKeys, matched };
+    };
+
+    if (tabValue === "Tag") {
+      const { leafKeys, matched } = getMatchedLeafKeys(tagTree, info.node);
+
+      finalCheckedKeys = info.checked
+        ? [...new Set([...checkedKeysFromEvent, ...matched])]
+        : checkedKeysFromEvent.filter((k) => !matched.includes(k));
 
       finalCheckedKeys = finalCheckedKeys.filter((k) => leafKeys.includes(k));
     } else if (tabValue === "Category") {
@@ -278,8 +302,17 @@ export default function folderCollection() {
 
     const categoryMap = buildNodeMap(categoryTree);
     const tagMap = buildNodeMap(tagTree);
+
+    let maxSimilarity = 0;
+
     const uuid_list = response.selected_documents.map((doc) => {
       const { uuid, _, similarity } = doc;
+
+      // update maxSimilarity
+      if (similarity > maxSimilarity) {
+        maxSimilarity = similarity;
+      }
+
       // update categoryMap
       const categoryItem = categoryMap.get(uuid);
       if (categoryItem) {
@@ -295,15 +328,13 @@ export default function folderCollection() {
       return uuid;
     });
 
-    console.log(tagTree);
-
     const sortedcategoryTree = sortTreeBySimilarity(categoryTree);
     const sortedTagTree = sortTreeBySimilarity(tagTree);
 
     setCategoryTree(sortedcategoryTree);
     setTagTree(sortedTagTree);
     setCheckedKeys(uuid_list);
-    onChangeCompleteSim(0.9);
+    onChangeCompleteSim((Math.trunc(maxSimilarity * 1000) / 1000).toFixed(3));
     setFetchingFolder(false);
   };
 
@@ -342,11 +373,16 @@ export default function folderCollection() {
       // update tagMap
       setTagTree(genTreeTags(response["documents"]));
 
-      const promptLibrary =
-        statusService
-          .getSnapshot("collections")
-          .find((c) => c.collection_name === selectedCollection)
-          ?.prompts?.map((p) => ({ value: p, label: p })) ?? [];
+      const collection = statusService
+        .getSnapshot("collections")
+        .find((c) => c.collection_name === selectedCollection);
+
+      const promptLibrary = collection?.prompts
+        ? Object.entries(collection.prompts).map(([key, value]) => ({
+            label: key,
+            value: value,
+          }))
+        : [];
       setPromptLibrary(promptLibrary);
 
       setFetchingFolder(false);
@@ -386,6 +422,12 @@ export default function folderCollection() {
 
   useEffect(() => {
     statusService.patchStatus("fileCollection", checkedKeys);
+
+    // update checked document counts
+    const uniqueKeyCount = new Set(
+      checkedKeys.map((key) => key.split("_").pop())
+    ).size;
+    setBadgeValue(`Checked: ${uniqueKeyCount}`);
   }, [checkedKeys]);
 
   return (
@@ -412,7 +454,7 @@ export default function folderCollection() {
             onClick={handlePost}
             loading={fetchingFolder ? { icon: <SyncOutlined spin /> } : null}
           >
-            Submit
+            Select
           </Button>
         </Flex>
         <Flex gap="small" justify="space-between" style={{ width: "100%" }}>
@@ -443,6 +485,7 @@ export default function folderCollection() {
           centered
           style={{ width: "100%" }}
           value={tabValue}
+          tabBarExtraContent={checkedCountContent}
           onChange={(value) => setTabValue(value)}
           items={[
             {

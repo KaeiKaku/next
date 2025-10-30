@@ -3,14 +3,11 @@
   height: 100%;
   width: 100%;
   padding: 1rem;
-  overflow: overlay;
 }
 
 .thread_con {
   width: var(--max-thread-width);
-  min-width: var(--min-thread-width);
-  height: 100%;
-  flex: none;
+  overflow: overlay;
 }
 
 .user_thread_con {
@@ -23,16 +20,30 @@
 }
 
 .queryBox_con {
-  position: fixed;
+  width: var(--max-thread-width);
+  position: absolute;
   bottom: 1rem;
 }
 
 .textarea_con {
-  width: var(--max-thread-width);
-  min-width: var(--min-thread-width);
+  width: 100%;
   padding: 0.5rem;
   border: 1px solid var(--gray-300);
   border-radius: 0.5rem;
   box-shadow: 0 0 0.5rem var(--gray-300);
   background-color: white;
+}
+
+@media (max-width: 1501px) {
+  .thread_con,
+  .queryBox_con {
+    width: var(--medium-thread-width);
+  }
+}
+
+@media (max-width: 1201px) {
+  .thread_con,
+  .queryBox_con {
+    width: var(--min-thread-width);
+  }
 }
