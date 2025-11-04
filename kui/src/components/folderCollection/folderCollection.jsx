@@ -11,10 +11,9 @@ import {
   Popover,
   Divider,
   Tabs,
-  Select,
   Badge,
 } from "antd";
-import { SyncOutlined } from "@ant-design/icons";
+import { SyncOutlined, DownloadOutlined } from "@ant-design/icons";
 import { statusService } from "@/status/status";
 import { apiService } from "@/service/api.service";
 
@@ -33,7 +32,6 @@ export default function folderCollection() {
   const [expandedKeys, setExpandedKeys] = useState([]);
   const [inputValueSim, setInputValueSim] = useState(0);
   const [BadgeValue, setBadgeValue] = useState("Checked: 0");
-  const [promptLibrary, setPromptLibrary] = useState([]);
   const [currentDocuments, setCurrentDocuments] = useState([]);
 
   const checkedCountContent = (
@@ -60,6 +58,14 @@ export default function folderCollection() {
           title,
           key: isLeaf ? datum.uuid : title,
           ...(isLeaf && {
+            icon: (
+              <DownloadOutlined
+                title="Download this file"
+                onClick={(e) => handleDocumentDownload(e, datum)}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#1677ff")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "unset")}
+              />
+            ),
             similarity: 0,
             keywords: datum.keywords,
             summary: datum.summary,
@@ -96,6 +102,14 @@ export default function folderCollection() {
       const fileName = parts[parts.length - 1];
       for (const tag of datum.tags) {
         (tagMap[tag] ||= []).push({
+          icon: (
+            <DownloadOutlined
+              title="Download this file"
+              onClick={(e) => handleDocumentDownload(e, datum)}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#1677ff")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "unset")}
+            />
+          ),
           title: fileName,
           key: `${tag}_${datum.uuid}`,
           keywords: datum.keywords,
@@ -354,10 +368,9 @@ export default function folderCollection() {
     }
   };
 
-  const handleChange = (value) => {
-    if (!value) return;
-    // patch predefinedPrompt
-    statusService.patchStatus("predefinedPrompt", value);
+  const handleDocumentDownload = (e, datum) => {
+    e.stopPropagation();
+    apiService.getDocumentsDownload(selectedCollection, datum.uuid);
   };
 
   useEffect(() => {
@@ -384,18 +397,6 @@ export default function folderCollection() {
       setCategoryTree(genTreeCategory(response["documents"]));
       // update tagMap
       setTagTree(genTreeTags(response["documents"]));
-
-      const collection = statusService
-        .getSnapshot("collections")
-        .find((c) => c.collection_name === selectedCollection);
-
-      const promptLibrary = collection?.prompts
-        ? Object.entries(collection.prompts).map(([key, value]) => ({
-            label: key,
-            value: value,
-          }))
-        : [];
-      setPromptLibrary(promptLibrary);
 
       // reset
       setInputValueSim(0.0);
@@ -541,23 +542,6 @@ export default function folderCollection() {
             />
           </Spin>
         </div>
-        <Flex
-          style={{
-            width: "100%",
-            height: "50px",
-          }}
-          align="center"
-          justify="center"
-          z-index={2}
-        >
-          <Select
-            allowClear
-            placeholder="Prompt Library"
-            options={promptLibrary}
-            onChange={handleChange}
-            style={{ flex: 1 }}
-          />
-        </Flex>
       </Flex>
     </>
   );

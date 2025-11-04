@@ -1,5 +1,13 @@
-import { Fragment, useState, useEffect, useRef, Children } from "react";
-import { Flex, Typography, Input, Button, Skeleton, Descriptions } from "antd";
+import { Fragment, useState, useEffect, useRef } from "react";
+import {
+  Flex,
+  Typography,
+  Input,
+  Button,
+  Skeleton,
+  Descriptions,
+  Dropdown,
+} from "antd";
 import { SendOutlined } from "@ant-design/icons";
 import { statusService } from "@/status/status";
 import { apiService } from "@/service/api.service";
@@ -16,7 +24,7 @@ export default function Chat() {
   const [documentCollection, setDocumentCollection] = useState();
   const [fileCollection, setFileCollection] = useState();
   const [messages, setMessages] = useState([]);
-  const [descriptionData, setDescriptionData] = useState([]);
+  const [promptLibrary, setPromptLibrary] = useState({ items: [] });
 
   const latestMessageRef = useRef(null);
   const textareaRef = useRef(null);
@@ -62,12 +70,45 @@ export default function Chat() {
   };
 
   useEffect(() => {
+    // docSub
     const docSub = statusService
       .getStatus$("documentCollection")
       .subscribe((_documentCollection) => {
         setDocumentCollection(_documentCollection);
+        setQuery("");
+
+        const collections = statusService.getSnapshot("collections") || [];
+        const collection = collections.find(
+          (c) => c.collection_name === _documentCollection
+        );
+
+        if (!collection || !collection.prompts) {
+          setPromptLibrary({ items: [] });
+          return;
+        }
+
+        const promptItems = Object.entries(collection.prompts).map(
+          ([key, value]) => ({
+            key: value,
+            label: key,
+          })
+        );
+
+        const promptLibrary = {
+          items: promptItems,
+          onClick: ({ key }) => {
+            const selected = promptItems.find((item) => item.key === key);
+            if (selected) {
+              setQuery(key);
+              textareaRef.current?.focus();
+            }
+          },
+        };
+
+        setPromptLibrary(promptLibrary);
       });
 
+    // fileSub
     const fileSub = statusService
       .getStatus$("fileCollection")
       .subscribe((_fileCollection) => {
@@ -75,16 +116,9 @@ export default function Chat() {
           ...new Set(_fileCollection.map((f) => f.split("_").pop())),
         ];
         setFileCollection(finalFileCollection);
-        console.log(finalFileCollection);
       });
 
-    const predefinedPromptSub = statusService
-      .getStatus$("predefinedPrompt")
-      .subscribe((_predefinedPrompt) => {
-        setQuery(_predefinedPrompt);
-        textareaRef.current?.focus();
-      });
-
+    // topNsimilarityDocumentsSub
     const topNsimilarityDocumentsSub = statusService
       .getStatus$("topNsimilarityDocuments")
       .subscribe((_topNsimilarityDocuments) => {
@@ -130,7 +164,6 @@ export default function Chat() {
     return () => {
       docSub.unsubscribe();
       fileSub.unsubscribe();
-      predefinedPromptSub.unsubscribe();
       topNsimilarityDocumentsSub.unsubscribe();
     };
   }, []);
@@ -232,9 +265,18 @@ export default function Chat() {
               placeholder="send a message..."
               onKeyDown={handleKeyDown}
               onChange={(e) => setQuery(e.target.value)}
-              autoSize={{ minRows: 1, maxRows: 10 }}
+              autoSize={{ minRows: 2, maxRows: 10 }}
             />
-            <Flex justify="flex-end">
+            <Flex justify="space-between">
+              <Dropdown
+                autoFocus
+                arrow
+                menu={promptLibrary}
+                trigger={["click"]}
+                placement="bottomLeft"
+              >
+                <Button>Prompt Library</Button>
+              </Dropdown>
               <Button
                 type="primary"
                 disabled={!documentCollection || !fileCollection?.length}
