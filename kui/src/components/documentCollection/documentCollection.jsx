@@ -9,6 +9,7 @@ export default function DocumentCollection() {
   const [document_opotions, setOptions] = useState("");
 
   const handleChange = (value) => {
+    // patch documentCollection
     statusService.patchStatus("documentCollection", value);
   };
 
@@ -29,6 +30,7 @@ export default function DocumentCollection() {
       },
     ];
 
+    // patch collections
     statusService.patchStatus("collections", response["collections"]);
 
     setOptions(new_document_opotions);

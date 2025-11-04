@@ -23,7 +23,7 @@ const { DirectoryTree } = Tree;
 
 export default function folderCollection() {
   const [fetchingFolder, setFetchingFolder] = useState(false);
-  const [selectrionQuery, setSelectionValue] = useState("");
+  const [selectionQuery, setSelectionQuery] = useState("");
   const [selectedCollection, setSelectedCollection] = useState("");
   const [categoryTree, setCategoryTree] = useState([]);
   const [tagTree, setTagTree] = useState([]);
@@ -34,6 +34,7 @@ export default function folderCollection() {
   const [inputValueSim, setInputValueSim] = useState(0);
   const [BadgeValue, setBadgeValue] = useState("Checked: 0");
   const [promptLibrary, setPromptLibrary] = useState([]);
+  const [currentDocuments, setCurrentDocuments] = useState([]);
 
   const checkedCountContent = (
     <Badge.Ribbon text={BadgeValue}>
@@ -293,40 +294,46 @@ export default function folderCollection() {
   };
 
   const handlePost = async () => {
-    if (!selectedCollection || !selectrionQuery.trim()) return;
+    if (!selectedCollection || !selectionQuery.trim()) return;
+
     setFetchingFolder(true);
 
     const response = await apiService.postSelectDocuments(selectedCollection, {
-      query: selectrionQuery,
+      query: selectionQuery,
     });
 
     const categoryMap = buildNodeMap(categoryTree);
     const tagMap = buildNodeMap(tagTree);
+    const currentMap = new Map(currentDocuments.map((d) => [d.uuid, d]));
 
     let maxSimilarity = 0;
+    const uuid_list = [];
 
-    const uuid_list = response.selected_documents.map((doc) => {
-      const { uuid, _, similarity } = doc;
-
+    for (const { uuid, similarity } of response.selected_documents) {
       // update maxSimilarity
-      if (similarity > maxSimilarity) {
-        maxSimilarity = similarity;
-      }
+      if (similarity > maxSimilarity) maxSimilarity = similarity;
 
       // update categoryMap
       const categoryItem = categoryMap.get(uuid);
-      if (categoryItem) {
-        categoryItem.similarity = similarity;
-      }
+      if (categoryItem) categoryItem.similarity = similarity;
+
       // update tagMap
       for (const [key, node] of tagMap) {
-        if (key.endsWith(`_${uuid}`)) {
-          node.similarity = similarity;
-        }
+        if (key.endsWith(`_${uuid}`)) node.similarity = similarity;
       }
 
-      return uuid;
-    });
+      // update currentDocuments
+      const doc = currentMap.get(uuid);
+      if (doc) doc.similarity = similarity;
+
+      uuid_list.push(uuid);
+    }
+
+    // patch topNsimilarityDocuments
+    statusService.patchStatus(
+      "topNsimilarityDocuments",
+      sortTreeBySimilarity(currentDocuments).slice(0, 3)
+    );
 
     const sortedcategoryTree = sortTreeBySimilarity(categoryTree);
     const sortedTagTree = sortTreeBySimilarity(tagTree);
@@ -349,6 +356,7 @@ export default function folderCollection() {
 
   const handleChange = (value) => {
     if (!value) return;
+    // patch predefinedPrompt
     statusService.patchStatus("predefinedPrompt", value);
   };
 
@@ -370,6 +378,8 @@ export default function folderCollection() {
 
       const response = await apiService.getDocuments(selectedCollection);
 
+      // update current documents
+      setCurrentDocuments(response["documents"]);
       // update categoryMap
       setCategoryTree(genTreeCategory(response["documents"]));
       // update tagMap
@@ -427,6 +437,7 @@ export default function folderCollection() {
   }, [tabValue, categoryTree, tagTree]);
 
   useEffect(() => {
+    // patch fileCollection
     statusService.patchStatus("fileCollection", checkedKeys);
 
     // update checked document counts
@@ -448,10 +459,10 @@ export default function folderCollection() {
       >
         <Typography.Title level={4}>Selection Query</Typography.Title>
         <TextArea
-          value={selectrionQuery}
+          value={selectionQuery}
           placeholder="send a message..."
           onKeyDown={handleKeyDown}
-          onChange={(e) => setSelectionValue(e.target.value)}
+          onChange={(e) => setSelectionQuery(e.target.value)}
           autoSize={{ minRows: 3, maxRows: 10 }}
         />
         <Flex justify="flex-end" style={{ width: "100%" }}>
@@ -520,6 +531,7 @@ export default function folderCollection() {
             <DirectoryTree
               checkable
               showLine
+              style={{ width: "max-content" }}
               selectable={false}
               treeData={treeData}
               expandedKeys={expandedKeys}
