@@ -1,8 +1,8 @@
 import { Flex, Splitter } from "antd";
-import Header from "@/components/header/header";
+import Header from "@/components/Header";
 import DocumentCollection from "@/components/documentCollection/documentCollection";
 import FolderCollection from "@/components/folderCollection/folderCollection";
-import Chat from "@/components/chat/chat";
+import Chat from "@/components/Chat";
 
 export default function Home() {
   return (

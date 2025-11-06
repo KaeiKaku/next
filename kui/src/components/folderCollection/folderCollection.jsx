@@ -32,7 +32,6 @@ export default function folderCollection() {
   const [expandedKeys, setExpandedKeys] = useState([]);
   const [inputValueSim, setInputValueSim] = useState(0);
   const [BadgeValue, setBadgeValue] = useState("Checked: 0");
-  const [currentDocuments, setCurrentDocuments] = useState([]);
 
   const checkedCountContent = (
     <Badge.Ribbon text={BadgeValue}>
@@ -318,7 +317,8 @@ export default function folderCollection() {
 
     const categoryMap = buildNodeMap(categoryTree);
     const tagMap = buildNodeMap(tagTree);
-    const currentMap = new Map(currentDocuments.map((d) => [d.uuid, d]));
+    const documents = statusService.getSnapshot("documents");
+    const documentsMap = new Map(documents.map((d) => [d.uuid, d]));
 
     let maxSimilarity = 0;
     const uuid_list = [];
@@ -337,7 +337,7 @@ export default function folderCollection() {
       }
 
       // update currentDocuments
-      const doc = currentMap.get(uuid);
+      const doc = documentsMap.get(uuid);
       if (doc) doc.similarity = similarity;
 
       uuid_list.push(uuid);
@@ -346,7 +346,7 @@ export default function folderCollection() {
     // patch topNsimilarityDocuments
     statusService.patchStatus(
       "topNsimilarityDocuments",
-      sortTreeBySimilarity(currentDocuments).slice(0, 3)
+      sortTreeBySimilarity(documents).slice(0, 3)
     );
 
     const sortedcategoryTree = sortTreeBySimilarity(categoryTree);
@@ -391,8 +391,9 @@ export default function folderCollection() {
 
       const response = await apiService.getDocuments(selectedCollection);
 
-      // update current documents
-      setCurrentDocuments(response["documents"]);
+      // patch documents
+      statusService.patchStatus("documents", response["documents"]);
+
       // update categoryMap
       setCategoryTree(genTreeCategory(response["documents"]));
       // update tagMap

@@ -1,3 +1,9 @@
+/**
+ * EY CONFIDENTIAL
+ * Copyright (c) Ernst & Young ShinNihon LLC, All Rights Reserved.
+ * Unauthorized copying of this file via any medium is strictly prohibited.
+ */
+
 import { ENDPOINTS } from "@/config";
 
 /**
@@ -89,11 +95,11 @@ const _fetchDataGetCollectionUuid = async (endpoint, collection, uuid) => {
   let filename = "downloaded_file";
 
   if (disposition) {
-    const filenameStarMatch = disposition.match(/filename\*\=UTF-8''(.+)$/i);
+    const filenameStarMatch = disposition.match(/filename\*=UTF-8''(.+)$/i);
     if (filenameStarMatch && filenameStarMatch[1]) {
       filename = decodeURIComponent(filenameStarMatch[1]);
     } else {
-      const filenameMatch = disposition.match(/filename="?([^\";]+)"?/);
+      const filenameMatch = disposition.match(/filename="?([^";]+)"?/);
       if (filenameMatch && filenameMatch[1]) {
         filename = filenameMatch[1];
       }

@@ -1,4 +1,4 @@
-import style from "./header.module.css";
+import style from "./Header.module.css";
 import { Flex, Typography } from "antd";
 
 export default function Header() {

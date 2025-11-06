@@ -4,8 +4,4 @@
  * Unauthorized copying of this file via any medium is strictly prohibited.
  */
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-export const ENDPOINTS = {
-  COLLECTIONS: `${API_BASE_URL}/collections`,
-};
+export { default } from "./Header.jsx";

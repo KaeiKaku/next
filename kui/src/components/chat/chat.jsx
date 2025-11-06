@@ -1,3 +1,9 @@
+/**
+ * EY CONFIDENTIAL
+ * Copyright (c) Ernst & Young ShinNihon LLC, All Rights Reserved.
+ * Unauthorized copying of this file via any medium is strictly prohibited.
+ */
+
 import { Fragment, useState, useEffect, useRef } from "react";
 import {
   Flex,
@@ -7,25 +13,32 @@ import {
   Skeleton,
   Descriptions,
   Dropdown,
+  Tag,
 } from "antd";
-import { SendOutlined } from "@ant-design/icons";
+import { SendOutlined, FileTextOutlined } from "@ant-design/icons";
 import { statusService } from "@/status/status";
 import { apiService } from "@/service/api.service";
 import useSessionModal from "@/hook/useSessionModal";
 import SessionModal from "@/components/sessionModal/sessionModal";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import styles from "./chat.module.css";
+import styles from "./Chat.module.css";
 
 const { Paragraph } = Typography;
 const { TextArea } = Input;
 
+/**
+ * Chat コンポーネント
+ *
+ * @returns {JSX.Element} The rendered Chat component.
+ */
 export default function Chat() {
   const [showIntro, confirmIntro] = useSessionModal("hasSeenIntro");
   const [fetchingAIResponse, setFetchingAIResponse] = useState(false);
   const [query, setQuery] = useState();
   const [documentCollection, setDocumentCollection] = useState();
   const [fileCollection, setFileCollection] = useState();
+  const [currentFileCollection, setCurrentFileCollection] = useState([]);
   const [messages, setMessages] = useState([]);
   const [promptLibrary, setPromptLibrary] = useState({ items: [] });
 
@@ -34,35 +47,43 @@ export default function Chat() {
 
   const handleQuery = async () => {
     if (!documentCollection || !fileCollection?.length || !query.trim()) return;
+
     setFetchingAIResponse(true);
+    try {
+      const new_messages = [
+        {
+          query: query,
+          response: "",
+        },
+      ];
+      setMessages((prev) => [...prev, ...new_messages]);
 
-    const new_messages = [
-      {
+      const query_json = {
         query: query,
-        response: "",
-      },
-    ];
-    setMessages((prev) => [...prev, ...new_messages]);
+        uuid_list: fileCollection,
+      };
 
-    const query_json = {
-      query: query,
-      uuid_list: fileCollection,
-    };
+      setQuery("");
 
-    setQuery("");
+      const response = await apiService.postInquireDocuments(
+        documentCollection,
+        query_json
+      );
 
-    const response = await apiService.postInquireDocuments(
-      documentCollection,
-      query_json
-    );
+      setMessages((prev) =>
+        prev.map((msg, index) =>
+          index === prev.length - 1
+            ? { ...msg, response: response.answer }
+            : msg
+        )
+      );
 
-    setMessages((prev) =>
-      prev.map((msg, index) =>
-        index === prev.length - 1 ? { ...msg, response: response.answer } : msg
-      )
-    );
-
-    setFetchingAIResponse(false);
+      setCurrentFileCollection(fileCollection);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setFetchingAIResponse(false);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -70,6 +91,18 @@ export default function Chat() {
       e.preventDefault();
       handleQuery();
     }
+  };
+
+  /**
+   * 指定された UUID に対応するドキュメントのファイル名を取得します。
+   *
+   * @param {string} uuid - 取得対象のドキュメントの UUID。
+   * @returns {string} ファイル名。該当ドキュメントが存在しない場合、またはパスが無効な場合は空文字列を返します。
+   */
+  const getDocumentFilenameUUID = (uuid) => {
+    const documents = statusService.getSnapshot("documents");
+    const doc = documents.find((d) => d.uuid === uuid);
+    return doc ? (doc.file_path.split(/[/\\]/).pop() ?? "") : "";
   };
 
   useEffect(() => {
@@ -235,6 +268,19 @@ export default function Chat() {
                       paragraph={{ rows: 4 }}
                       loading={fetchingAIResponse && last}
                     >
+                      <Flex gap=".5rem 0" wrap>
+                        {currentFileCollection.map((uuid, index) => {
+                          return (
+                            <Tag
+                              key={index}
+                              icon={<FileTextOutlined />}
+                              color="orange"
+                            >
+                              {getDocumentFilenameUUID(uuid)}
+                            </Tag>
+                          );
+                        })}
+                      </Flex>
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {message.response}
                       </ReactMarkdown>
@@ -274,7 +320,6 @@ export default function Chat() {
                       paddingBottom: last ? "10rem" : 0,
                     }}
                   >
-                    {" "}
                     <Flex
                       style={{
                         padding: "1rem",
