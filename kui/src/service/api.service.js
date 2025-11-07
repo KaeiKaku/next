@@ -74,8 +74,6 @@ const _fetchDataGetCollectionUuid = async (endpoint, collection, uuid) => {
 
   const response = await fetch(url);
 
-  console.log(response);
-
   // ⚠️ Handle error responses (e.g., 404 or 500)
   if (!response.ok) {
     try {

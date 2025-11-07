@@ -14,12 +14,13 @@ import {
   Descriptions,
   Dropdown,
   Tag,
+  message,
 } from "antd";
 import { SendOutlined, FileTextOutlined } from "@ant-design/icons";
 import { statusService } from "@/status/status";
 import { apiService } from "@/service/api.service";
 import useSessionModal from "@/hook/useSessionModal";
-import SessionModal from "@/components/sessionModal/sessionModal";
+import SessionModal from "@/components/SessionModal/sessionModal";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import styles from "./Chat.module.css";
@@ -37,16 +38,16 @@ export default function Chat() {
   const [fetchingAIResponse, setFetchingAIResponse] = useState(false);
   const [query, setQuery] = useState();
   const [documentCollection, setDocumentCollection] = useState();
-  const [fileCollection, setFileCollection] = useState();
-  const [currentFileCollection, setCurrentFileCollection] = useState([]);
+  const [selectedKeys, setSelectedKeys] = useState([]);
   const [messages, setMessages] = useState([]);
   const [promptLibrary, setPromptLibrary] = useState({ items: [] });
+  const [messageApi, messageContextHolder] = message.useMessage();
 
   const latestMessageRef = useRef(null);
   const textareaRef = useRef(null);
 
   const handleQuery = async () => {
-    if (!documentCollection || !fileCollection?.length || !query.trim()) return;
+    if (!documentCollection || !selectedKeys?.length || !query.trim()) return;
 
     setFetchingAIResponse(true);
     try {
@@ -54,13 +55,14 @@ export default function Chat() {
         {
           query: query,
           response: "",
+          uuid_list: selectedKeys,
         },
       ];
       setMessages((prev) => [...prev, ...new_messages]);
 
       const query_json = {
         query: query,
-        uuid_list: fileCollection,
+        uuid_list: selectedKeys,
       };
 
       setQuery("");
@@ -77,10 +79,11 @@ export default function Chat() {
             : msg
         )
       );
-
-      setCurrentFileCollection(fileCollection);
     } catch (error) {
-      console.error(error);
+      messageApi.open({
+        type: "error",
+        content: `Error in chat query: ${error}`,
+      });
     } finally {
       setFetchingAIResponse(false);
     }
@@ -146,12 +149,12 @@ export default function Chat() {
 
     // fileSub
     const fileSub = statusService
-      .getStatus$("fileCollection")
-      .subscribe((_fileCollection) => {
+      .getStatus$("selectedKeys")
+      .subscribe((_selectedKeys) => {
         const finalFileCollection = [
-          ...new Set(_fileCollection.map((f) => f.split("_").pop())),
+          ...new Set(_selectedKeys.map((f) => f.split("_").pop())),
         ];
-        setFileCollection(finalFileCollection);
+        setSelectedKeys(finalFileCollection);
       });
 
     // topNsimilarityDocumentsSub
@@ -229,6 +232,7 @@ export default function Chat() {
 
   return (
     <>
+      {messageContextHolder}
       <SessionModal visible={showIntro} onConfirm={confirmIntro}></SessionModal>
       <Flex
         justify="flest-start"
@@ -269,7 +273,7 @@ export default function Chat() {
                       loading={fetchingAIResponse && last}
                     >
                       <Flex gap=".5rem 0" wrap>
-                        {currentFileCollection.map((uuid, index) => {
+                        {message.uuid_list?.map((uuid, index) => {
                           return (
                             <Tag
                               key={index}
@@ -402,7 +406,7 @@ export default function Chat() {
               </Dropdown>
               <Button
                 type="primary"
-                disabled={!documentCollection || !fileCollection?.length}
+                disabled={!documentCollection || !selectedKeys?.length}
                 loading={fetchingAIResponse}
                 icon={<SendOutlined rotate={270} onClick={handleQuery} />}
               />
