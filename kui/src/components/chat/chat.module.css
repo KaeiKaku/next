@@ -2,12 +2,12 @@
   position: relative;
   height: 100%;
   width: 100%;
-  padding: 1rem;
 }
 
 .thread_con {
   width: var(--max-thread-width);
   height: auto;
+  padding: 1rem;
 }
 
 .user_thread_con {
@@ -17,7 +17,7 @@
 
 .queryBox_con {
   width: var(--max-thread-width);
-  position: sticky;
+  position: fixed;
   margin-top: auto;
   bottom: 1rem;
 }
@@ -43,4 +43,19 @@
   .queryBox_con {
     width: var(--min-thread-width);
   }
+}
+
+:global(.ant-descriptions-item) {
+  padding: 4px 0;
+}
+:global(.ant-descriptions-item-label) {
+  line-height: 1;
+  padding: 0 0 2px 0;
+}
+:global(.ant-descriptions-item-content) {
+  line-height: 1;
+  padding: 0;
+}
+:global(.ant-descriptions-item p) {
+  margin: 0;
 }

@@ -1,0 +1,20 @@
+# Status Configurations
+#
+# This file defines the keys and initial values
+# used in the status service for managing application state.
+# Each key is prefixed with "@" to denote its usage in the status service.
+
+# 取得したコレクションの配列
+"@Collections": []
+
+# 取得したドキュメントの配列
+"@Documents": []
+
+# 選択したコレクションの名前
+"@SelectedCollectionName": ""
+
+# 選択されたドキュメントのキーの配列
+"@SelectedKeys": []
+
+# 類似度の高いドキュメントの配列
+"@TopNSimilarityDocuments": []

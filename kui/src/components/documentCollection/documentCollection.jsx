@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import { Flex, Typography, Select, Space, Spin, message } from "antd";
-import { statusService } from "@/status/status";
+import { statusService } from "@/common/status";
 import { apiService } from "@/service/api.service";
 import style from "./DocumentCollection.module.css";
 
@@ -20,9 +20,9 @@ export default function DocumentCollection() {
   const [collectionOptions, setCollectionOptions] = useState([]);
   const [messageApi, messageContextHolder] = message.useMessage();
 
-  const handleChange = (value) => {
-    // 選択されたドキュメントコレクションをステータスにパッチ
-    statusService.patchStatus("documentCollection", value);
+  const handleChange = (collectionName) => {
+    // 選択されたコレクション名をステータスに保存
+    statusService.patchStatus("@SelectedCollectionName", collectionName);
   };
 
   const handleFocus = async () => {
@@ -38,7 +38,7 @@ export default function DocumentCollection() {
       const collections = Array.isArray(response?.collections)
         ? response.collections
         : [];
-      statusService.patchStatus("collections", collections);
+      statusService.patchStatus("@Collections", collections);
 
       // 取得したデータをセレクトボックスのオプションを作成
       const newCollectionOptions = [

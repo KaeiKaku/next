@@ -4,7 +4,7 @@
  * Unauthorized copying of this file via any medium is strictly prohibited.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Flex,
   Typography,
@@ -20,10 +20,11 @@ import {
   Badge,
   message,
 } from "antd";
-import { SyncOutlined, DownloadOutlined } from "@ant-design/icons";
-import { statusService } from "@/status/status";
+import { SyncOutlined, DownloadOutlined, SendOutlined } from "@ant-design/icons";
+import { statusService } from "@/common/status";
 import { apiService } from "@/service/api.service";
 import { splitFilePath } from "@/common/utility";
+import { extractUuidFromKey, buildTagKey } from "@/common/common";
 import style from "./DocumentSelector.module.css";
 
 /**
@@ -38,24 +39,23 @@ export default function DocumentSelector() {
   const [categoryTree, setCategoryTree] = useState([]);
   const [tagTree, setTagTree] = useState([]);
   const [treeData, setTreeData] = useState([]);
+  const [similarityTree, setSimilarityTree] = useState([]);
   const [activeViewName, setActiveViewName] = useState("Category");
   const [selectedKeys, setSelectedKeys] = useState([]);
   const [expandedKeys, setExpandedKeys] = useState([]);
   const [inputValueSim, setInputValueSim] = useState(0);
-  const [BadgeValue, setBadgeValue] = useState("0 documents selected");
+  const [selectedDocumentCountText, setSelectedDocumentCountText] = useState("");
   const [messageApi, messageContextHolder] = message.useMessage();
 
-  // 選択されたドキュメント数のバッジ
-  const selectedCountBadge = (
-    <Badge.Ribbon text={BadgeValue}>
-      <span
-        style={{
-          display: "inline-block",
-          width: "10rem",
-        }}
-      ></span>
-    </Badge.Ribbon>
-  );
+  /**
+   * ドキュメントダウンロード処理を行うイベントハンドラー
+   * @param {Event} e - クリックイベントオブジェクト
+   * @param {Object} documentItem - ダウンロード対象のドキュメントデータ
+   */
+  const handleDocumentDownload = useCallback((e, documentItem) => {
+    e.stopPropagation();
+    apiService.getDocumentsDownload(selectedCollectionName, documentItem.uuid);
+  }, [selectedCollectionName]);
 
   /**
    * カテゴリービューのツリーデータを生成する
@@ -63,7 +63,7 @@ export default function DocumentSelector() {
    * @param {[]} documents - ドキュメントデータの配列
    * @returns {[]} - ツリーデータの配列
    */
-  const generateCategoryViewTree = (documents = []) => {
+  const generateCategoryViewTree = useCallback((documents = []) => {
     // データのサンプル
     //
     // documents = [
@@ -162,34 +162,7 @@ export default function DocumentSelector() {
     });
 
     return tree;
-  };
-
-  // タグビューでのキーの区切り文字
-  const TAG_KEY_DELIMITER = "::";
-
-  /**
-   * タグキーからUUIDを抽出する
-   *
-   * @param {string} key - TAG_KEY_DELIMITERで区切られたタグキー
-   * @returns {string} 抽出されたUUID
-   * @throws {Error} 無効なタグキー形式の場合
-   *
-   * @example
-   * // カテゴリービューでのキー key: <uuid>
-   * // タグビューでのキー key: <tag><TAG_KEY_DELIMITER><uuid>
-   * const uuid = getUuidForTagKey("tag1::123e4567-e89b-12d3-a456-426614174000");
-   * // returns "123e4567-e89b-12d3-a456-426614174000"
-   */
-  const extractUuidFromKey = (key) => {
-    const keyParts = key.split(TAG_KEY_DELIMITER);
-    if (keyParts.length == 1) {
-      return keyParts[0];
-    } else if (keyParts.length === 2) {
-      return keyParts[1];
-    } else {
-      throw new Error(`Invalid tag key format: ${key}`);
-    }
-  };
+  }, [handleDocumentDownload]);
 
   /**
    * タグビューのツリーデータを生成する
@@ -197,7 +170,7 @@ export default function DocumentSelector() {
    * @param {[]} documents - ドキュメントデータの配列
    * @returns {[]} - ツリーデータの配列
    */
-  const generateTagViewTree = (documents = []) => {
+  const generateTagViewTree = useCallback((documents = []) => {
     // データのサンプル
     //
     // documents = [
@@ -231,7 +204,7 @@ export default function DocumentSelector() {
     //   ...
     // ]
 
-    const collections = statusService.getSnapshot("collections") || [];
+    const collections = statusService.getSnapshot("@Collections") || [];
     const selectedCollection = collections.find(
       (c) => c.collection_name === selectedCollectionName
     );
@@ -258,7 +231,7 @@ export default function DocumentSelector() {
             />
           ),
           title: fileName,
-          key: `${tag}${TAG_KEY_DELIMITER}${documentItem.uuid}`,
+          key: buildTagKey(tag, documentItem.uuid),
           keywords: documentItem.keywords,
           summary: documentItem.summary,
           similarity: 0,
@@ -276,7 +249,37 @@ export default function DocumentSelector() {
       .filter((node) => node.children.length > 0);
 
     return tree;
-  };
+  }, [selectedCollectionName, handleDocumentDownload]);
+
+  /**
+   * 類似度ビューのツリーデータを生成する（フラット）
+   * @param {[]} documents
+   * @returns {[]} flat tree sorted by similarity desc
+   */
+  const generateSimilarityViewTree = useCallback((documents = []) => {
+    const docs = Array.isArray(documents) ? documents.slice() : [];
+    docs.sort((a, b) => (b.similarity ?? -Infinity) - (a.similarity ?? -Infinity));
+    return docs.map((documentItem) => {
+      const filePathSegments = splitFilePath(documentItem.file_path);
+      const fileName = filePathSegments.at(-1);
+      return {
+        title: fileName,
+        key: documentItem.uuid,
+        icon: (
+          <DownloadOutlined
+            title="download"
+            onClick={(e) => handleDocumentDownload(e, documentItem)}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#1677ff")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "unset")}
+          />
+        ),
+        similarity: documentItem.similarity ?? 0,
+        keywords: documentItem.keywords,
+        summary: documentItem.summary,
+        tags: documentItem.tags,
+      };
+    });
+  }, [handleDocumentDownload]);
 
   /**
    * 葉ノードのキーをすべて取得する
@@ -285,7 +288,7 @@ export default function DocumentSelector() {
    * @param {[]} keys - 再帰的に収集されたキーの配列（初回は空配列を渡す）
    * @returns {[]} - 葉ノードのキーの配列
    */
-  const getLeafKeys = (tree, keys = []) => {
+  const getLeafKeys = useCallback((tree, keys = []) => {
     for (const node of tree || []) {
       if (!node?.children || node.children.length === 0) {
         if (node?.key !== undefined) {
@@ -296,7 +299,7 @@ export default function DocumentSelector() {
       }
     }
     return keys;
-  };
+  }, []);
 
   /**
    * 葉ノード以外のノードのキーの配列を取得する
@@ -304,7 +307,7 @@ export default function DocumentSelector() {
    * @param {[]} tree - ツリーデータの配列
    * @returns {[]} - 葉ノード以外のノードのキーの配列
    */
-  const getNonLeafKeys = (tree) => {
+  const getNonLeafKeys = useCallback((tree) => {
     // treeData =
     //   [
     //     { key: "A", children: [{ key: "A/1" }] },
@@ -319,7 +322,7 @@ export default function DocumentSelector() {
       }
     });
     return keys;
-  };
+  }, []);
 
   /**
    * ツリーデータを類似度でソートする
@@ -434,11 +437,11 @@ export default function DocumentSelector() {
               }}
               vertical
             >
-              <Divider orientation="left" plain>
+              <Divider orientation="left" orientationMargin="0" plain>
                 <span>keywords</span>
               </Divider>
               <p>{node.keywords?.join(",")}</p>
-              <Divider orientation="left" plain>
+              <Divider orientation="left" orientationMargin="0" plain>
                 <span>summary</span>
               </Divider>
               <p>{node.summary}</p>
@@ -471,35 +474,12 @@ export default function DocumentSelector() {
    * @param {string[]} selectedKeysFromEvent - イベントから取得されたチェック済みキーの配列
    * @param {Object} info - チェック操作に関する情報オブジェクト
    */
-  const onCheck = (selectedKeysFromEvent, info) => {
-    let updatedSelectedKeys = [];
-    if (activeViewName === "Tag") {
-      // キーの形式が tag::uuid なので、uuid 部分でマッチングを行う
-      const leafKeys = getLeafKeys(tagTree);
-      const uuid = extractUuidFromKey(info.node.key);
-      let matchedKeys = leafKeys.filter((k) => k.endsWith(uuid));
-      if (matchedKeys.length === 0 && info.node.children?.length) {
-        const childUuids = info.node.children.map((child) =>
-          extractUuidFromKey(child.key)
-        );
-        matchedKeys = leafKeys.filter((key) =>
-          childUuids.includes(extractUuidFromKey(key))
-        );
-      }
-      updatedSelectedKeys = info.checked
-        ? [...new Set([...selectedKeysFromEvent, ...matchedKeys])]
-        : selectedKeysFromEvent.filter((k) => !matchedKeys.includes(k));
-      updatedSelectedKeys = updatedSelectedKeys.filter((k) =>
-        leafKeys.includes(k)
-      );
-    } else if (activeViewName === "Category") {
-      // カテゴリービューではそのままリーフノードのキーでフィルタリングする
-      const leafKeys = getLeafKeys(categoryTree);
-      updatedSelectedKeys = selectedKeysFromEvent.filter((k) =>
-        leafKeys.includes(k)
-      );
-    }
-    setSelectedKeys(updatedSelectedKeys);
+  const onCheck = (selectedKeysFromEvent) => {
+    // Tree から来るキー列を UUID に変換して state に保存する
+    const uuids = Array.from(
+      new Set(selectedKeysFromEvent.map((k) => extractUuidFromKey(k)))
+    );
+    setSelectedKeys(uuids);
   };
 
   /**
@@ -528,10 +508,16 @@ export default function DocumentSelector() {
   const onSimilarityChangeComplete = (similarity) => {
     setInputValueSim(similarity);
 
-    const tree = activeViewName === "Tag" ? tagTree : categoryTree;
-    const selectedKeys = getKeysAboveThreshold(tree, similarity);
-
-    setSelectedKeys(selectedKeys);
+    const trees = {
+      Category: categoryTree,
+      Tag: tagTree,
+      Similarity: similarityTree,
+    };
+    const tree = trees[activeViewName];
+    const keys = getKeysAboveThreshold(tree, similarity);
+    // keys は view によって tag::uuid か uuid の可能性があるため UUID に正規化して保存
+    const uuids = Array.from(new Set(keys.map((k) => extractUuidFromKey(k))));
+    setSelectedKeys(uuids);
   };
 
   /**
@@ -564,11 +550,12 @@ export default function DocumentSelector() {
 
       const categoryTreeMap = indexNodesByKey(categoryTree);
       const tagTreeMap = indexNodesByKey(tagTree);
-      const documents = statusService.getSnapshot("documents");
+      const similarityTreeMap = indexNodesByKey(similarityTree);
+      const documents = statusService.getSnapshot("@Documents");
       const documentsMap = new Map(documents.map((d) => [d.uuid, d]));
 
       let maxSimilarity = 0;
-      const uuid_list = [];
+      const uuids = [];
 
       for (const { uuid, similarity } of response.selected_documents) {
         if (similarity > maxSimilarity) {
@@ -585,16 +572,21 @@ export default function DocumentSelector() {
             node.similarity = similarity;
           }
         }
+        // 類似度ビューの更新
+        const similarityItem = similarityTreeMap.get(uuid);
+        if (similarityItem) {
+          similarityItem.similarity = similarity;
+        }
         // update currentDocuments
         const document = documentsMap.get(uuid);
         if (document) {
           document.similarity = similarity;
         }
-        uuid_list.push(uuid);
+        uuids.push(uuid);
       }
-      // topNsimilarityDocuments のステータスを更新
+      // @TopNSimilarityDocuments のステータスを更新
       statusService.patchStatus(
-        "topNsimilarityDocuments",
+        "@TopNSimilarityDocuments",
         sortTreeBySimilarity(documents).slice(0, 3)
       );
 
@@ -604,7 +596,10 @@ export default function DocumentSelector() {
       const sortedTagTree = sortTreeBySimilarity(tagTree);
       setTagTree(sortedTagTree);
 
-      setSelectedKeys(uuid_list);
+      const sortedSimilarityTree = sortTreeBySimilarity(similarityTree);
+      setSimilarityTree(sortedSimilarityTree);
+
+      setSelectedKeys(uuids);
       onSimilarityChangeComplete(
         Number((Math.trunc(maxSimilarity * 1000) / 1000).toFixed(3))
       );
@@ -633,26 +628,30 @@ export default function DocumentSelector() {
     }
   };
 
-  /**
-   * ドキュメントダウンロード処理を行うイベントハンドラー
-   * @param {Event} e - クリックイベントオブジェクト
-   * @param {Object} documentItem - ダウンロード対象のドキュメントデータ
-   */
-  const handleDocumentDownload = (e, documentItem) => {
-    e.stopPropagation();
-    apiService.getDocumentsDownload(selectedCollectionName, documentItem.uuid);
-  };
-
   // selectedCollectionName の変更を監視する
   useEffect(() => {
-    const documentCollectionSubscription = statusService
-      .getStatus$("documentCollection")
+    const selectedCollectionNameSubscription = statusService
+      .getStatus$("@SelectedCollectionName")
       .subscribe((collectionName) => {
         setSelectedCollectionName(collectionName);
       });
     return () => {
-      documentCollectionSubscription.unsubscribe();
+      selectedCollectionNameSubscription.unsubscribe();
     };
+  }, []);
+
+  // Chat などの外部コンポーネントからの SelectedKeys 更新を監視する
+  useEffect(() => {
+    const selectedKeysSubscription = statusService
+      .getStatus$("@SelectedKeys")
+      .subscribe((keys) => {
+        if (!keys) {
+          return;
+        }
+        const uuids = [...new Set(keys.map((k) => extractUuidFromKey(k)))];
+        setSelectedKeys(uuids);
+    });
+    return () => selectedKeysSubscription.unsubscribe();
   }, []);
 
   // selectedCollectionName が変更されたらドキュメントデータを取得する
@@ -661,9 +660,10 @@ export default function DocumentSelector() {
       setIsFetching(true);
       try {
         const response = await apiService.getDocuments(selectedCollectionName);
-        statusService.patchStatus("documents", response["documents"]);
+        statusService.patchStatus("@Documents", response["documents"]);
         setCategoryTree(generateCategoryViewTree(response["documents"]));
         setTagTree(generateTagViewTree(response["documents"]));
+        setSimilarityTree(generateSimilarityViewTree(response["documents"]));
         setInputValueSim(0.0);
         setSelectedKeys([]);
       } catch (error) {
@@ -679,64 +679,54 @@ export default function DocumentSelector() {
     if (selectedCollectionName) {
       fetchFolderData();
     }
-  }, [selectedCollectionName]);
+  }, [selectedCollectionName,
+      generateCategoryViewTree,
+      generateTagViewTree,
+      generateSimilarityViewTree,
+      messageApi]);
 
+  // アクティブなビューが変更されたらツリーデータと選択状態を更新する
   useEffect(() => {
     const trees = {
       Category: categoryTree,
       Tag: tagTree,
+      Similarity: similarityTree,
     };
     const viewTree = trees[activeViewName] || [];
 
     // ビューの更新
     setTreeData(viewTree);
-    setExpandedKeys(getNonLeafKeys(viewTree));
+    const viewIndex = indexNodesByKey(viewTree);
+    // expandedKeys は viewTree に実際に存在するノードのみを設定
+    setExpandedKeys(getNonLeafKeys(viewTree).filter((k) => viewIndex.has(k)));
+  }, [activeViewName, categoryTree, tagTree, similarityTree, getNonLeafKeys]);
 
-    // チェック状態が空なら何もしない
-    if (!selectedKeys || selectedKeys.length === 0) {
-      return;
+  // Tree に渡す checkedKeys を現在の treeData の葉ノードに存在するキーだけで計算する
+  const checkedKeysForTree = useMemo(() => {
+    if (!Array.isArray(selectedKeys) || selectedKeys.length === 0) {
+      return [];
     }
-
-    // selectedKeys から UUID を抽出する
-    const uuids = [...new Set(selectedKeys.map((k) => extractUuidFromKey(k)))];
-
-    let selectedKeysForView = [];
-    if (activeViewName === "Tag") {
-      // タグビューでは tag::uuid 形式のリーフキーを集める
-      const tagLeafKeys = getLeafKeys(tagTree);
-      const matched = new Set();
-      for (const u of uuids) {
-        for (const k of tagLeafKeys) {
-          if (k.endsWith(u)) matched.add(k);
-        }
+    const leafKeys = getLeafKeys(treeData);
+    const uuids = new Set(selectedKeys.map((k) => extractUuidFromKey(k)));
+    const matched = [];
+    for (const key of leafKeys) {
+      if (uuids.has(extractUuidFromKey(key))) {
+        matched.push(key);
       }
-      selectedKeysForView = Array.from(matched);
-    } else {
-      // カテゴリービューは UUID のまま
-      selectedKeysForView = uuids;
     }
-
-    // 差分がある場合のみ更新する
-    const keysBeforeUpdate = new Set(selectedKeys);
-    const keysAfterUpdate = new Set(selectedKeysForView);
-    const isSame =
-      keysBeforeUpdate.size === keysAfterUpdate.size &&
-      [...keysAfterUpdate].every((v) => keysBeforeUpdate.has(v));
-    if (!isSame) {
-      setSelectedKeys(selectedKeysForView);
-    }
-  }, [activeViewName, categoryTree, tagTree, selectedKeys]);
+    return matched;
+  }, [selectedKeys, treeData, getLeafKeys]);
 
   // 選択済みドキュメントのキーと数を更新する
   useEffect(() => {
     // 選択済みドキュメントのキーをステータスに保存
-    statusService.patchStatus("selectedKeys", selectedKeys);
+    statusService.patchStatus("@SelectedKeys", selectedKeys);
 
     // 選択済みドキュメント数の更新
     const selectedDocumentCount = new Set(
-      selectedKeys.map((key) => key.split(TAG_KEY_DELIMITER).pop())
+      selectedKeys.map((key) => extractUuidFromKey(key))
     ).size;
-    setBadgeValue(
+    setSelectedDocumentCountText(
       selectedDocumentCount === 1
         ? `${selectedDocumentCount} document selected`
         : `${selectedDocumentCount} documents selected`
@@ -755,24 +745,32 @@ export default function DocumentSelector() {
         gap={"small"}
       >
         <Typography.Title level={4}>Document Selector</Typography.Title>
-        <Input.TextArea
-          value={selectionQuery}
-          placeholder="send a query to select documents..."
-          onKeyDown={handleSelectionQueryKeyDown}
-          onChange={(e) => setSelectionQuery(e.target.value)}
-          autoSize={{ minRows: 3, maxRows: 10 }}
-        />
-        <Flex justify="flex-end" style={{ width: "100%" }}>
-          <Button
-            type="primary"
-            onClick={submitSelectionQuery}
-            loading={isFetching ? { icon: <SyncOutlined spin /> } : null}
-          >
-            Select
-          </Button>
+
+       {/* ドキュメント選択のクエリの入力欄 */}
+        <Flex justify="center" className={style.queryBox_con}>
+          <Flex className={style.textarea_con} vertical>
+            <Input.TextArea
+              value={selectionQuery}
+              variant="borderless"
+              placeholder="send a query to select documents..."
+              onKeyDown={handleSelectionQueryKeyDown}
+              onChange={(e) => setSelectionQuery(e.target.value)}
+              autoSize={{ minRows: 1, maxRows: 10 }}
+            />
+            <Flex justify="right">
+              <Button
+                type="default"
+                loading={isFetching}
+                onClick={submitSelectionQuery}
+                icon={<SendOutlined style={{ transform: "rotate(270deg)" }} />}
+              />
+            </Flex>
+          </Flex>
         </Flex>
+
+        {/* 類似度スライダー */}
         <Flex gap="small" justify="space-between" style={{ width: "100%" }}>
-          <Typography.Title level={4}>Similarity</Typography.Title>
+          {/* <Typography.Title level={5}>Similarity</Typography.Title> */}
           <Slider
             min={0}
             max={1}
@@ -794,12 +792,14 @@ export default function DocumentSelector() {
             value={inputValueSim}
           />
         </Flex>
+
+        {/* ドキュメント一覧 */}
         <Tabs
           defaultActiveKey="Category"
           centered
           style={{ width: "100%" }}
           value={activeViewName}
-          tabBarExtraContent={selectedCountBadge}
+          // tabBarExtraContent={selectedCountBadge}
           onChange={(value) => setActiveViewName(value)}
           items={[
             {
@@ -809,6 +809,10 @@ export default function DocumentSelector() {
             {
               key: "Tag",
               label: "Tag View",
+            },
+            {
+              key: "Similarity",
+              label: "Similarity View",
             },
           ]}
         />
@@ -833,11 +837,21 @@ export default function DocumentSelector() {
               treeData={treeData}
               expandedKeys={expandedKeys}
               titleRender={(node) => renderTitle(node)}
-              checkedKeys={selectedKeys}
+              checkedKeys={checkedKeysForTree}
               onCheck={onCheck}
             />
           </Spin>
         </div>
+
+        {/* 選択ドキュメント数を表示 */}
+        <Flex
+          justify="flex-end"
+          style={{ width: "100%", alignItems: "center", gap: "0.5rem" }}
+        >
+          <Typography.Text style={{ whiteSpace: "nowrap" }}>
+            {selectedDocumentCountText}
+          </Typography.Text>
+        </Flex>
       </Flex>
     </>
   );

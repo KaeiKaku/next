@@ -1,5 +1,5 @@
 import { Modal, Button, Flex } from "antd";
-import style from "./sessionModal.module.css";
+import style from "./SessionModal.module.css";
 
 export default function SessionModal({
   visible,
@@ -36,11 +36,7 @@ export default function SessionModal({
             を利用した自動応答を提供するサービス（開発版）です。あらかじめ用意されたドキュメントに対して質問を投げかけ、回答を得ることができます。複数のドキュメントを横断的に検索し、情報を整理することも可能です。
           </li>
           <li>
-            <b
-              style={{
-                color: "red",
-              }}
-            >
+            <b className={style.red_attention}>
               クライアントの機密情報や個人情報などの入力は禁止します。
             </b>
           </li>

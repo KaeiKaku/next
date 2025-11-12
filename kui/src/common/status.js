@@ -1,6 +1,14 @@
-import { BehaviorSubject, distinctUntilChanged, map } from "rxjs";
-import init_status from "@/status/status.config.json";
+/**
+ * EY CONFIDENTIAL
+ * Copyright (c) Ernst & Young ShinNihon LLC, All Rights Reserved.
+ * Unauthorized copying of this file via any medium is strictly prohibited.
+ */
 
+import { BehaviorSubject, distinctUntilChanged, map } from "rxjs";
+import { load as yamlLoad } from "js-yaml";
+import statusConfigYaml from "@/common/status.config.yaml?raw";
+
+const init_status = yamlLoad(statusConfigYaml);
 if (!init_status || !_isPlainObject(init_status)) {
   throw new Error("Invalid initial status");
 }
@@ -14,64 +22,60 @@ const _status$ = new BehaviorSubject(init_status);
  *
  * @param {Object} status - The target object to read or update.
  * @param {string} path - Dot-separated path string to access a property (e.g. "a.b.c").
- * @param {*} [updated_Status=NOTGIVEN] - The new value to set.
+ * @param {*} [updatedStatus=NOTGIVEN] - The new value to set.
  *   - If NOTGIVEN → returns the current value at the path.
  *   - If null or undefined → deletes the property.
  *   - If a plain object → performs a deep merge.
  *   - Otherwise → directly replaces the existing value.
  *
- * @returns {*} - If `updated_Status` is NOTGIVEN, returns the current value.
+ * @returns {*} - If `updatedStatus` is NOTGIVEN, returns the current value.
  *                Otherwise, returns the updated status object.
  */
-function _getPatchValueBypath(status, path, updated_Status = NOTGIVEN) {
-  // -----------------------------
-  //  Parameter validation
-  // -----------------------------
+function _getPatchValueBypath(status, path, updatedStatus = NOTGIVEN) {
   if (!_isString(path)) throw new Error("invalid path string.");
-  if (!status) throw new Error("status undefined");
+  if (!status || typeof status !== "object") throw new Error("status undefined");
 
-  // -----------------------------
-  //  Parse path string
-  // -----------------------------
-  const paths = path.split(".");
-  const str = paths.shift(); // Get the first path segment
+  const pathSegments = path.split(".");
+  const key = pathSegments.shift();
 
-  // If the path is invalid or the property does not exist
-  if (!str || !status.hasOwnProperty(str)) {
+  if (!key) {
+    throw new Error("invalid path string.")
+  }
+
+  // safe hasOwnProperty check
+  const hasKey = Object.prototype.hasOwnProperty.call(status, key);
+
+  // If reading and key missing -> error
+  if (updatedStatus === NOTGIVEN && !hasKey) {
     throw new Error("missing status property");
   }
 
-  // -----------------------------
-  //  Recursive traversal
-  // -----------------------------
-  if (paths.length > 0 && status[str]) {
-    // Continue traversing deeper if there are remaining path segments
-    return _getPatchValueBypath(status[str], paths.join("."), updated_Status);
+  // If need to traverse deeper
+  if (pathSegments.length > 0) {
+    if (!hasKey || status[key] === null || typeof status[key] !== "object") {
+      // If updating, create intermediate plain object to continue traversal
+      if (updatedStatus !== NOTGIVEN) {
+        status[key] = {};
+      } else {
+        throw new Error("missing status property");
+      }
+    }
+    return _getPatchValueBypath(status[key], pathSegments.join("."), updatedStatus);
   }
 
-  // -----------------------------
-  //  Read-only mode: just return value
-  // -----------------------------
-  if (updated_Status === NOTGIVEN) {
-    return status[str];
+  // Leaf handling
+  if (updatedStatus === NOTGIVEN) {
+    return status[key];
   }
 
-  // -----------------------------
-  //  Update logic
-  // -----------------------------
-  if (updated_Status === null || updated_Status === undefined) {
-    // Case ①: Remove the property if update value is null or undefined
-    delete status[str];
-  } else if (_isPlainObject(status[str]) && _isPlainObject(updated_Status)) {
-    // Case ②: Deep merge if both current and new values are plain objects
-    // _deepMerge merges nested fields recursively and replaces arrays
-    _deepMerge(status[str], updated_Status);
+  if (updatedStatus === null || updatedStatus === undefined) {
+    delete status[key];
+  } else if (_isPlainObject(status[key]) && _isPlainObject(updatedStatus)) {
+    _deepMerge(status[key], updatedStatus);
   } else {
-    // Case ③: Direct replacement for primitives, arrays, etc.
-    status[str] = updated_Status;
+    status[key] = updatedStatus;
   }
 
-  // Return updated status (useful for chaining or consistency)
   return status;
 }
 
@@ -91,24 +95,29 @@ function _getPatchValueBypath(status, path, updated_Status = NOTGIVEN) {
  * // => { user: { name: "Alice", info: { city: "Osaka", age: 25 } } }
  */
 function _deepMerge(target, source) {
-  for (const key in source) {
-    // Ensure the key exists on source (not inherited)
-    if (source.hasOwnProperty(key) && _isPlainObject(source[key])) {
-      // Initialize target[key] as an object if it's not already one
-      if (
-        !_isPlainObject(target[key]) ||
-        target[key] === null ||
-        Array.isArray(target[key])
-      ) {
+  // 両方ともプレーンオブジェクトでなければ source を返して置換
+  if (!_isPlainObject(target) || !_isPlainObject(source)) {
+    return source;
+  }
+
+  // source の列挙可能な自前プロパティのみを処理
+  for (const key of Object.keys(source)) {
+    const srcVal = source[key];
+    const tgtVal = target[key];
+
+    if (_isPlainObject(srcVal)) {
+      // ターゲット側がプレーンオブジェクトでなければ新しく作る（配列や他は置換される）
+      if (!_isPlainObject(tgtVal)) {
         target[key] = {};
       }
-      // Recursively merge nested objects
-      _deepMerge(target[key], source[key]);
+      // 再帰マージ
+      _deepMerge(target[key], srcVal);
     } else {
-      // For non-object values (including arrays), directly replace
-      target[key] = source[key];
+      // 配列やプリミティブ、null 等は完全に置換
+      target[key] = srcVal;
     }
   }
+
   return target;
 }
 
